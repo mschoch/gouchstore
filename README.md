@@ -32,3 +32,7 @@ There are also a few utility programs available in the utils directory.
 ## Build Status
 
 [![Build Status](https://drone.io/github.com/mschoch/gouchstore/status.png)](https://drone.io/github.com/mschoch/gouchstore/latest)
+
+## Code Coverage
+
+[![Coverage Status](https://coveralls.io/repos/mschoch/gouchstore/badge.png?branch=master)](https://coveralls.io/r/mschoch/gouchstore?branch=master)
