@@ -1,0 +1,98 @@
+//  Copyright (c) 2014 Marty Schoch
+//  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+//  except in compliance with the License. You may obtain a copy of the License at
+//    http://www.apache.org/licenses/LICENSE-2.0
+//  Unless required by applicable law or agreed to in writing, software distributed under the
+//  License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//  either express or implied. See the License for the specific language governing permissions
+//  and limitations under the License.
+
+package gouchstore
+
+import (
+	"log"
+	"os"
+)
+
+const gs_BLOCK_SIZE int64 = 4096
+const gs_BLOCK_MARKER_SIZE int64 = 1
+
+const (
+	gs_BLOCK_DATA    byte = 0
+	gs_BLOCK_HEADER  byte = 1
+	gs_BLOCK_INVALID byte = 0xff
+)
+
+func (g *Gouchstore) gotoEof() error {
+	var err error
+	g.pos, err = g.file.Seek(0, os.SEEK_END)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (g *Gouchstore) seekPreviousBlockFrom(pos int64) (int64, byte, error) {
+	pos -= pos % gs_BLOCK_SIZE
+	for ; pos >= 0; pos -= gs_BLOCK_SIZE {
+		var err error
+		buf := make([]byte, 1)
+		n, err := g.file.ReadAt(buf, pos)
+		if n != 1 || err != nil {
+			return -1, gs_BLOCK_INVALID, err
+		}
+		if buf[0] == gs_BLOCK_HEADER {
+			return pos, gs_BLOCK_HEADER, nil
+		} else if buf[0] == gs_BLOCK_DATA {
+			return pos, gs_BLOCK_DATA, nil
+		} else {
+			return -1, gs_BLOCK_INVALID, nil
+		}
+	}
+	return -1, gs_BLOCK_INVALID, nil
+}
+
+func (g *Gouchstore) seekLastHeaderBlock() (int64, error) {
+	var blockType byte
+	var err error
+	g.gotoEof()
+	pos := g.pos
+	for pos, blockType, err = g.seekPreviousBlockFrom(pos); blockType != gs_BLOCK_HEADER; pos, blockType, err = g.seekPreviousBlockFrom(pos) {
+		if err != nil {
+			return -1, err
+		}
+		log.Printf("skipping block type: %d", blockType)
+	}
+	return pos, nil
+}
+
+// this is just like os.File.ReadAt() except that if your read
+// crosses a block boundary, the block marker is removed
+func (g *Gouchstore) readAt(buf []byte, pos int64) (int64, error) {
+	bytesReadSoFar := int64(0)
+	numBytesToRead := int64(len(buf))
+	readOffset := pos
+	for numBytesToRead > 0 {
+		var err error
+		bytesTillNextBlock := gs_BLOCK_SIZE - (readOffset % gs_BLOCK_SIZE)
+		if bytesTillNextBlock == gs_BLOCK_SIZE {
+			readOffset++
+			bytesTillNextBlock--
+		}
+		bytesToReadThisPass := bytesTillNextBlock
+		if bytesToReadThisPass > numBytesToRead {
+			bytesToReadThisPass = numBytesToRead
+		}
+		n, err := g.file.ReadAt(buf[bytesReadSoFar:bytesReadSoFar+bytesToReadThisPass], readOffset)
+		if err != nil {
+			return -1, err
+		}
+		readOffset += int64(n)
+		bytesReadSoFar += int64(n)
+		numBytesToRead -= int64(n)
+		if int64(n) < bytesToReadThisPass {
+			return bytesReadSoFar, nil
+		}
+	}
+	return bytesReadSoFar, nil
+}

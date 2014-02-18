@@ -1,0 +1,11 @@
+#*
+*.sublime-*
+*~
+.#*
+.project
+.settings
+.DS_Store
+/utils/gsdbinfo/gsdbinfo
+/utils/gsdblist/gsdblist
+/utils/gsdbget/gsdbget
+/coverage.out
