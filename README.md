@@ -28,3 +28,7 @@ There are also a few utility programs available in the utils directory.
 * gsdbinfo - prints the database info for a couchstore file
 * gsdblist - prints list of document info for docuemnts with ids in the specified range
 * gsdbget - fetch individual documents and print the info and/or body
+
+## Build Status
+
+[![Build Status](https://drone.io/github.com/mschoch/gouchstore/status.png)](https://drone.io/github.com/mschoch/gouchstore/latest)
