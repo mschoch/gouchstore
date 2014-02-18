@@ -19,7 +19,7 @@ To open a database and fetch a key:
 
 ## Documentation
 
-FIXME link to godoc.org
+See the [full documentation](http://godoc.org/github.com/mschoch/gouchstore)
 
 ## Utilities
 
