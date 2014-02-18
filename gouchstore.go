@@ -42,13 +42,13 @@ func (di *DocumentInfo) compressed() bool {
 
 // DatabaseInfo describes the database as a whole.
 type DatabaseInfo struct {
-	FileName       string `json:"fileName"`      // filesystem path
-	LastSeq        uint64 `json:"lastSeq"`       // last sequence number allocated
-	DocumentCount  uint64 `json:"documentCount"` // total number of (non-deleted) documents
-	DeletedCount   uint64 `json:"deletedCount"`  // total number of deleted documents
-	SpaceUsed      uint64 `json:"spaceUsed"`     // disk space actively used by docs
-	FileSize       uint64 `json:fileSize"`       // total disk space used by database
-	HeaderPosition uint64 `json:headerPosition"` // file offset of current header
+	FileName       string `json:"fileName"`       // filesystem path
+	LastSeq        uint64 `json:"lastSeq"`        // last sequence number allocated
+	DocumentCount  uint64 `json:"documentCount"`  // total number of (non-deleted) documents
+	DeletedCount   uint64 `json:"deletedCount"`   // total number of deleted documents
+	SpaceUsed      uint64 `json:"spaceUsed"`      // disk space actively used by docs
+	FileSize       uint64 `json:"fileSize"`       // total disk space used by database
+	HeaderPosition uint64 `json:"headerPosition"` // file offset of current header
 }
 
 // DocumentInfoCallback is a function definition which is used for document iteration.
