@@ -8,4 +8,5 @@
 /utils/gsdbinfo/gsdbinfo
 /utils/gsdblist/gsdblist
 /utils/gsdbget/gsdbget
+/utils/gsdbdebug/gsdbdebug
 /coverage.out

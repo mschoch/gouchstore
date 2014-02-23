@@ -16,6 +16,42 @@ import (
 
 const gs_TOP_BIT_MASK byte = 0x80
 
+func encode_raw08(val interface{}) []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, val)
+	bufbytes := buf.Bytes()
+	return bufbytes[len(bufbytes)-1:]
+}
+
+func encode_raw16(val interface{}) []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, val)
+	bufbytes := buf.Bytes()
+	return bufbytes[len(bufbytes)-2:]
+}
+
+func encode_raw31_highestbiton(val interface{}) []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, val)
+	bufbytes := buf.Bytes()
+	bufbytes[len(bufbytes)-4] = bufbytes[len(bufbytes)-4] | gs_TOP_BIT_MASK
+	return bufbytes[len(bufbytes)-4:]
+}
+
+func encode_raw32(val interface{}) []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, val)
+	bufbytes := buf.Bytes()
+	return bufbytes[len(bufbytes)-4:]
+}
+
+func encode_raw40(val interface{}) []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, val)
+	bufbytes := buf.Bytes()
+	return bufbytes[len(bufbytes)-5:]
+}
+
 func encode_raw48(val interface{}) []byte {
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.BigEndian, val)
@@ -92,6 +128,20 @@ func decode_raw_1_47_split(raw []byte) (bool, uint64) {
 	return rbool, rint
 }
 
+func encode_raw_1_47_split(topBit bool, rest uint64) []byte {
+	// encode the rest portion first
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, rest)
+	bufbytes := buf.Bytes()
+	// then overwrite the top bit
+	if topBit {
+		bufbytes[len(bufbytes)-6] = bufbytes[len(bufbytes)-6] | gs_TOP_BIT_MASK
+	} else {
+		bufbytes[len(bufbytes)-6] = bufbytes[len(bufbytes)-6] &^ gs_TOP_BIT_MASK
+	}
+	return bufbytes[len(bufbytes)-6:]
+}
+
 func decode_raw_12_28_split(data []byte) (top uint32, bottom uint32) {
 	kFirstByte := (data[0] & 0xf0) >> 4
 	kSecondByteTop := (data[0] & 0x0f) << 4
@@ -105,4 +155,28 @@ func decode_raw_12_28_split(data []byte) (top uint32, bottom uint32) {
 	buf.Write(data[2:])
 	binary.Read(buf, binary.BigEndian, &bottom)
 	return
+}
+
+func encode_raw_12_28_split(top uint32, bottom uint32) []byte {
+	topbuf := new(bytes.Buffer)
+	binary.Write(topbuf, binary.BigEndian, top)
+	topbytes := topbuf.Bytes()
+
+	newtoptop := topbytes[len(topbytes)-2] & 0x0f << 4
+	newtopbottom := topbytes[len(topbytes)-1] & 0xf0 >> 4
+	newtop := newtoptop | newtopbottom
+
+	newbottomtop := topbytes[len(topbytes)-1] & 0x0f << 4
+
+	bottombuf := new(bytes.Buffer)
+	binary.Write(bottombuf, binary.BigEndian, bottom)
+	bottombytes := bottombuf.Bytes()
+
+	newbottombottom := bottombytes[len(bottombytes)-4] & 0x0f
+
+	newbottom := newbottomtop | newbottombottom
+
+	resultbuf := bytes.NewBuffer([]byte{newtop, newbottom})
+	resultbuf.Write(bottombytes[len(bottombytes)-3:])
+	return resultbuf.Bytes()
 }

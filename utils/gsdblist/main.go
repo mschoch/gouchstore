@@ -19,6 +19,8 @@ import (
 
 var startId = flag.String("startId", "", "the document ID to scan from")
 var endId = flag.String("endId", "", "the document ID to scan to")
+var startSeq = flag.Int("startSeq", -1, "the sequence number to scan from")
+var endSeq = flag.Int("endSeq", -1, "the sequence number to scan to")
 
 func allDocumentsCallback(g *gouchstore.Gouchstore, docInfo *gouchstore.DocumentInfo, userContext interface{}) {
 	bytes, err := json.MarshalIndent(docInfo, "", "  ")
@@ -38,7 +40,7 @@ func main() {
 		fmt.Println("Must specify path to a gouchstore compatible file")
 		return
 	}
-	db, err := gouchstore.Open(flag.Args()[0])
+	db, err := gouchstore.Open(flag.Args()[0], gouchstore.OPEN_RDONLY)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -46,10 +48,23 @@ func main() {
 	defer db.Close()
 
 	context := map[string]int{"count": 0}
-	err = db.AllDocuments(*startId, *endId, allDocumentsCallback, context)
-	if err != nil {
-		fmt.Println(err)
-		return
+
+	// sequence mode
+	if *startSeq != -1 || *endSeq != -1 {
+		if *startSeq < 0 {
+			*startSeq = 0
+		}
+		db.ChangesSince(uint64(*startSeq), uint64(*endSeq), allDocumentsCallback, context)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	} else { // id mode
+		err = db.AllDocuments(*startId, *endId, allDocumentsCallback, context)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	}
 	fmt.Printf("Listed %d documents\n", context["count"])
 }

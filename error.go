@@ -13,6 +13,7 @@ import (
 	"fmt"
 )
 
+var gs_ERROR_INVALID_ARGUMENTS = fmt.Errorf("invalid arguments")
 var gs_ERROR_INVALID_CHUNK_SHORT_PREFIX = fmt.Errorf("invalid chunk, prefix too short")
 var gs_ERROR_INVALID_CHUNK_SIZE_TOO_SMALL = fmt.Errorf("invalid chunk, chunk size too small")
 var gs_ERROR_INVALID_CHUNK_DATA_LESS_THAN_SIZE = fmt.Errorf("invalid chunk, data less than size")
@@ -23,3 +24,5 @@ var gs_ERROR_INVALID_HEADER_BAD_SIZE = fmt.Errorf("invalid header, bad size")
 var gs_ERROR_INVALID_BTREE_NODE_TYPE = fmt.Errorf("invalid btree node, bad type")
 
 var gs_ERROR_DOCUMENT_NOT_FOUND = fmt.Errorf("document not found")
+
+var gs_ERROR_CORRUPT = fmt.Errorf("corrupt")

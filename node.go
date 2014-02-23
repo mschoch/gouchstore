@@ -10,6 +10,7 @@
 package gouchstore
 
 import (
+	"bytes"
 	"fmt"
 )
 
@@ -19,6 +20,8 @@ const gs_BTREE_LEAF byte = 1
 const gs_INDEX_TYPE_BY_ID int = 0
 const gs_INDEX_TYPE_BY_SEQ int = 1
 const gs_INDEX_TYPE_LOCAL_DOCS int = 2
+
+const gs_KEY_VALUE_LEN int = 5
 
 type node struct {
 	// interior nodes will have this
@@ -30,21 +33,23 @@ type node struct {
 func (n *node) String() string {
 	var rv string
 	if n.pointers != nil {
-		rv = "Interior Node: "
+		rv = "Interior Node: [\n"
 		for i, p := range n.pointers {
 			if i != 0 {
-				rv += ", "
+				rv += ",\n"
 			}
 			rv += fmt.Sprintf("%v", p)
 		}
+		rv += "]\n"
 	} else {
-		rv = "Leaf Node:"
+		rv = "Leaf Node: [\n"
 		for i, d := range n.documents {
 			if i != 0 {
-				rv += ", "
+				rv += ",\n"
 			}
 			rv += fmt.Sprintf("%v", d)
 		}
+		rv += "]\n"
 	}
 	return rv
 }
@@ -68,6 +73,23 @@ type nodePointer struct {
 	subtreeSize  uint64
 }
 
+func (np *nodePointer) encodeRoot() []byte {
+	buf := new(bytes.Buffer)
+	buf.Write(encode_raw48(np.pointer))
+	buf.Write(encode_raw48(np.subtreeSize))
+	buf.Write(np.reducedValue)
+	return buf.Bytes()
+}
+
+func (np *nodePointer) encode() []byte {
+	buf := new(bytes.Buffer)
+	buf.Write(encode_raw48(np.pointer))
+	buf.Write(encode_raw48(np.subtreeSize))
+	buf.Write(encode_raw16(uint16(len(np.reducedValue))))
+	buf.Write(np.reducedValue)
+	return buf.Bytes()
+}
+
 func decodeRootNodePointer(data []byte) *nodePointer {
 	n := nodePointer{}
 	n.pointer = decode_raw48(data[0:6])
@@ -89,7 +111,7 @@ func (np *nodePointer) String() string {
 	if np.key == nil {
 		return fmt.Sprintf("Root Pointer: %d Subtree Size: %d ReduceValue: % x", np.pointer, np.subtreeSize, np.reducedValue)
 	}
-	return fmt.Sprintf("Key: '%s' Pointer: %d Subtree Size: %d ReduceValue: % x", np.key, np.pointer, np.subtreeSize, np.reducedValue)
+	return fmt.Sprintf("Key: `%s` (%x) Pointer: %d Subtree Size: %d ReduceValue: % x", np.key, np.key, np.pointer, np.subtreeSize, np.reducedValue)
 }
 
 func decodeInteriorBtreeNode(nodeData []byte, indexType int) (*node, error) {
@@ -134,6 +156,17 @@ func decodeByIdValue(docinfo *DocumentInfo, value []byte) {
 	docinfo.RevMeta = value[23:]
 }
 
+func (d DocumentInfo) encodeById() []byte {
+	buf := new(bytes.Buffer)
+	buf.Write(encode_raw48(d.Seq))
+	buf.Write(encode_raw32(d.Size))
+	buf.Write(encode_raw_1_47_split(d.Deleted, d.bodyPosition))
+	buf.Write(encode_raw48(d.Rev))
+	buf.Write(encode_raw08(d.ContentMeta))
+	buf.Write(d.RevMeta)
+	return buf.Bytes()
+}
+
 func decodeBySeqValue(docinfo *DocumentInfo, value []byte) {
 	idSize, docSize := decode_raw_12_28_split(value[0:5])
 	docinfo.Size = uint64(docSize)
@@ -142,6 +175,17 @@ func decodeBySeqValue(docinfo *DocumentInfo, value []byte) {
 	docinfo.ContentMeta = decode_raw08(value[17:18])
 	docinfo.ID = string(value[18 : 18+idSize])
 	docinfo.RevMeta = value[18+idSize:]
+}
+
+func (d DocumentInfo) encodeBySeq() []byte {
+	buf := new(bytes.Buffer)
+	buf.Write(encode_raw_12_28_split(uint32(len(d.ID)), uint32(d.Size)))
+	buf.Write(encode_raw_1_47_split(d.Deleted, d.bodyPosition))
+	buf.Write(encode_raw48(d.Rev))
+	buf.Write(encode_raw08(d.ContentMeta))
+	buf.Write([]byte(d.ID))
+	buf.Write(d.RevMeta)
+	return buf.Bytes()
 }
 
 func decodeKeyValue(nodeData []byte, bufPos int) ([]byte, []byte, int) {
@@ -153,4 +197,14 @@ func decodeKeyValue(nodeData []byte, bufPos int) ([]byte, []byte, int) {
 	valueEnd := valueStart + int(valueLength)
 	value := nodeData[valueStart:valueEnd]
 	return key, value, valueEnd
+}
+
+func encodeKeyValue(key, value []byte) []byte {
+	buf := new(bytes.Buffer)
+	keyLength := len(key)
+	valueLength := len(value)
+	buf.Write(encode_raw_12_28_split(uint32(keyLength), uint32(valueLength)))
+	buf.Write(key)
+	buf.Write(value)
+	return buf.Bytes()
 }

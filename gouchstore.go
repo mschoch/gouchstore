@@ -10,6 +10,7 @@
 package gouchstore
 
 import (
+	"fmt"
 	"os"
 	"sort"
 )
@@ -40,6 +41,10 @@ func (di *DocumentInfo) compressed() bool {
 	return false
 }
 
+func (di *DocumentInfo) String() string {
+	return fmt.Sprintf("ID: `%s` Seq: %d Rev: %d Deleted: %t Size: %d BodyPosition: %d (0x%x)", di.ID, di.Seq, di.Rev, di.Deleted, di.Size, di.bodyPosition, di.bodyPosition)
+}
+
 // DatabaseInfo describes the database as a whole.
 type DatabaseInfo struct {
 	FileName       string `json:"fileName"`       // filesystem path
@@ -63,22 +68,55 @@ type Gouchstore struct {
 	header *header
 }
 
+const (
+	OPEN_CREATE int = 1
+	OPEN_RDONLY int = 2
+)
+
 // Open attemps to open an existing couchstore file.
-// Since write operations are not yet supported, all files are opened read-only.
 //
 // All Gouchstore files successfully opened should be closed with the Close() method.
-func Open(filename string) (*Gouchstore, error) {
-	file, err := os.Open(filename)
+func Open(filename string, options int) (*Gouchstore, error) {
+	// sanity check options
+	if options&OPEN_CREATE != 0 && options&OPEN_RDONLY != 0 {
+		return nil, gs_ERROR_INVALID_ARGUMENTS
+	}
+
+	var openFlags int
+	if options&OPEN_RDONLY != 0 {
+		openFlags = os.O_RDONLY
+	} else {
+		openFlags = os.O_RDWR
+	}
+
+	if options&OPEN_CREATE != 0 {
+		openFlags |= os.O_CREATE
+	}
+
+	file, err := os.OpenFile(filename, openFlags, 0666)
 	if err != nil {
 		return nil, err
 	}
 	rv := Gouchstore{
 		file: file,
 	}
-	err = rv.findLastHeader()
+	err = rv.gotoEof()
 	if err != nil {
 		return nil, err
 	}
+	if rv.pos == 0 {
+		rv.header = newHeader()
+		err = rv.writeHeader(rv.header)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = rv.findLastHeader()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &rv, nil
 }
 
@@ -281,6 +319,86 @@ func (g *Gouchstore) DocumentByDocumentInfo(docInfo *DocumentInfo) (*Document, e
 	return &rv, nil
 }
 
+// SaveDocument not public yet while under development
+func (g *Gouchstore) saveDocument(doc *Document, docInfo *DocumentInfo) error {
+	return g.saveDocuments([]*Document{doc}, []*DocumentInfo{docInfo})
+}
+
+// SaveDocuments not public yet while under development
+func (g *Gouchstore) saveDocuments(docs []*Document, docInfos []*DocumentInfo) error {
+
+	numDocs := len(docs)
+	seqklist := make([][]byte, numDocs)
+	idklist := make([][]byte, numDocs)
+	seqvlist := make([][]byte, numDocs)
+	idvlist := make([][]byte, numDocs)
+
+	seq := g.header.updateSeq
+
+	for i, doc := range docs {
+		docInfo := docInfos[i]
+		seq++
+		seqterm, idterm, seqval, idval, err := g.addDocToUpdateList(doc, docInfo, seq)
+		if err != nil {
+			return err
+		}
+		seqklist[i] = seqterm
+		idklist[i] = idterm
+		seqvlist[i] = seqval
+		idvlist[i] = idval
+	}
+
+	err := g.updateIndexes(seqklist, seqvlist, idklist, idvlist)
+	if err != nil {
+		return err
+	}
+
+	// set the assigned sequence numbers
+	seq = g.header.updateSeq
+	for _, docInfo := range docInfos {
+		seq++
+		docInfo.Seq = seq
+	}
+	g.header.updateSeq = seq
+
+	return nil
+}
+
+func (g *Gouchstore) Commit() error {
+	curPos := g.pos
+	var seqRootSize, idRootSize, localRootSize int64
+	if g.header.bySeqRoot != nil {
+		seqRootSize = gs_ROOT_BASE_SIZE + int64(len(g.header.bySeqRoot.reducedValue))
+	}
+	if g.header.byIdRoot != nil {
+		idRootSize = gs_ROOT_BASE_SIZE + int64(len(g.header.byIdRoot.reducedValue))
+	}
+	if g.header.localDocsRoot != nil {
+		localRootSize = gs_ROOT_BASE_SIZE + int64(len(g.header.localDocsRoot.reducedValue))
+	}
+	//g.pos += int64(gs_HEADER_BASE_SIZE) + seqRootSize + idRootSize + localRootSize
+	//Extend file size to where end of header will land before we do first sync
+	//g.writeAt([]byte{0x0}, g.pos, true)
+	dummyHeader := make([]byte, int(gs_HEADER_BASE_SIZE+seqRootSize+idRootSize+localRootSize))
+	g.writeChunk(dummyHeader, true)
+
+	err := g.file.Sync()
+	if err != nil {
+		return err
+	}
+
+	//Set the pos back to where it was when we started to write the real header.
+	g.pos = curPos
+
+	err = g.writeHeader(g.header)
+	if err != nil {
+		return err
+	}
+
+	err = g.file.Sync()
+	return err
+}
+
 // DatabaseInfo returns information describing the database itself.
 func (g *Gouchstore) DatabaseInfo() (*DatabaseInfo, error) {
 	rv := DatabaseInfo{
@@ -316,9 +434,3 @@ const (
 	gs_DOC_NON_JSON_MODE         = 3
 	gs_DOC_IS_COMPRESSED    byte = 128
 )
-
-type seqList []uint64
-
-func (s seqList) Len() int           { return len(s) }
-func (s seqList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s seqList) Less(i, j int) bool { return s[i] < s[j] }

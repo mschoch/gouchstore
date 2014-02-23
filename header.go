@@ -10,11 +10,13 @@
 package gouchstore
 
 import (
+	"bytes"
 	"fmt"
 )
 
+const gs_DISK_VERSION = 10
 const gs_ROOT_BASE_SIZE = 12
-const gs_HEADER_BASE_SIZE int = 25
+const gs_HEADER_BASE_SIZE int64 = 25
 
 type header struct {
 	diskVersion   uint64
@@ -25,6 +27,43 @@ type header struct {
 	bySeqRoot     *nodePointer
 	localDocsRoot *nodePointer
 	position      uint64
+}
+
+func (h *header) toBytes() []byte {
+	buf := new(bytes.Buffer)
+
+	buf.Write(encode_raw08(h.diskVersion))
+	buf.Write(encode_raw48(h.updateSeq))
+	buf.Write(encode_raw48(h.purgeSeq))
+	buf.Write(encode_raw48(h.purgePtr))
+
+	var bySeqBytes, byIdBytes, localDocsBytes []byte
+
+	if h.bySeqRoot != nil {
+		bySeqBytes = h.bySeqRoot.encodeRoot()
+	}
+	if h.byIdRoot != nil {
+		byIdBytes = h.byIdRoot.encodeRoot()
+	}
+	if h.localDocsRoot != nil {
+		localDocsBytes = h.localDocsRoot.encodeRoot()
+	}
+
+	buf.Write(encode_raw16(uint16(len(bySeqBytes))))
+	buf.Write(encode_raw16(uint16(len(byIdBytes))))
+	buf.Write(encode_raw16(uint16(len(localDocsBytes))))
+
+	if bySeqBytes != nil {
+		buf.Write(bySeqBytes)
+	}
+	if byIdBytes != nil {
+		buf.Write(byIdBytes)
+	}
+	if localDocsBytes != nil {
+		buf.Write(localDocsBytes)
+	}
+
+	return buf.Bytes()
 }
 
 func (h *header) String() string {
@@ -38,7 +77,13 @@ func (h *header) String() string {
 	return rv
 }
 
-func newHeader(data []byte) (*header, error) {
+func newHeader() *header {
+	rv := header{}
+	rv.diskVersion = gs_DISK_VERSION
+	return &rv
+}
+
+func newHeaderFromBytes(data []byte) (*header, error) {
 
 	rv := header{}
 
@@ -51,11 +96,11 @@ func newHeader(data []byte) (*header, error) {
 	byIdRootSize := decode_raw16(data[21:23])
 	localDocRootSize := decode_raw16(data[23:25])
 
-	if len(data) != gs_HEADER_BASE_SIZE+int(bySeqRootSize+byIdRootSize+localDocRootSize) {
+	if len(data) != int(gs_HEADER_BASE_SIZE)+int(bySeqRootSize+byIdRootSize+localDocRootSize) {
 		return nil, gs_ERROR_INVALID_HEADER_BAD_SIZE
 	}
 
-	pointerOffset := gs_HEADER_BASE_SIZE
+	pointerOffset := int(gs_HEADER_BASE_SIZE)
 	if bySeqRootSize > 0 {
 		rv.bySeqRoot = decodeRootNodePointer(data[pointerOffset : pointerOffset+int(bySeqRootSize)])
 	}
@@ -76,7 +121,7 @@ func (g *Gouchstore) readHeaderAt(pos int64) (*header, error) {
 	if err != nil {
 		return nil, err
 	}
-	header, err := newHeader(chunk)
+	header, err := newHeaderFromBytes(chunk)
 	if err != nil {
 		return nil, err
 	}
@@ -94,5 +139,14 @@ func (g *Gouchstore) findLastHeader() error {
 	}
 	header.position = uint64(headerPos)
 	g.header = header
+	return nil
+}
+
+func (g *Gouchstore) writeHeader(h *header) error {
+	headerBytes := h.toBytes()
+	_, _, err := g.writeChunk(headerBytes, true)
+	if err != nil {
+		return err
+	}
 	return nil
 }

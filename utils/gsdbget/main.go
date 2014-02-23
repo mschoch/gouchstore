@@ -31,7 +31,7 @@ func main() {
 		fmt.Println("Must specify document ID to get")
 		return
 	}
-	db, err := gouchstore.Open(flag.Args()[0])
+	db, err := gouchstore.Open(flag.Args()[0], gouchstore.OPEN_RDONLY)
 	if err != nil {
 		fmt.Println(err)
 		return

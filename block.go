@@ -10,7 +10,6 @@
 package gouchstore
 
 import (
-	"log"
 	"os"
 )
 
@@ -61,7 +60,6 @@ func (g *Gouchstore) seekLastHeaderBlock() (int64, error) {
 		if err != nil {
 			return -1, err
 		}
-		log.Printf("skipping block type: %d", blockType)
 	}
 	return pos, nil
 }
@@ -70,6 +68,7 @@ func (g *Gouchstore) seekLastHeaderBlock() (int64, error) {
 // crosses a block boundary, the block marker is removed
 func (g *Gouchstore) readAt(buf []byte, pos int64) (int64, error) {
 	bytesReadSoFar := int64(0)
+	bytesSkipped := int64(0)
 	numBytesToRead := int64(len(buf))
 	readOffset := pos
 	for numBytesToRead > 0 {
@@ -78,6 +77,7 @@ func (g *Gouchstore) readAt(buf []byte, pos int64) (int64, error) {
 		if bytesTillNextBlock == gs_BLOCK_SIZE {
 			readOffset++
 			bytesTillNextBlock--
+			bytesSkipped++
 		}
 		bytesToReadThisPass := bytesTillNextBlock
 		if bytesToReadThisPass > numBytesToRead {
@@ -94,5 +94,45 @@ func (g *Gouchstore) readAt(buf []byte, pos int64) (int64, error) {
 			return bytesReadSoFar, nil
 		}
 	}
-	return bytesReadSoFar, nil
+	return bytesReadSoFar + bytesSkipped, nil
+}
+
+// writeAt is just like os.File.WriteAt() except that if your write
+// crosses a block boundary, the correct block marker in inserted
+func (g *Gouchstore) writeAt(buf []byte, pos int64, header bool) (int64, error) {
+	var err error
+	var bufSize int64 = int64(len(buf))
+	var writePos int64 = pos
+	var bufPos int64
+	var written int
+	var blockRemain int64
+	var blockPrefix byte = 0x00
+	if header {
+		blockPrefix = 0x01
+	}
+
+	for bufPos < bufSize {
+		blockRemain = gs_BLOCK_SIZE - (writePos % gs_BLOCK_SIZE)
+		if blockRemain > (bufSize - bufPos) {
+			blockRemain = bufSize - bufPos
+		}
+
+		if writePos%gs_BLOCK_SIZE == 0 {
+			written, err = g.file.WriteAt([]byte{blockPrefix}, writePos)
+			if err != nil {
+				return int64(written), err
+			}
+			writePos += 1
+			continue
+		}
+
+		written, err = g.file.WriteAt(buf[bufPos:bufPos+blockRemain], writePos)
+		if err != nil {
+			return int64(written), err
+		}
+		bufPos += int64(written)
+		writePos += int64(written)
+	}
+
+	return writePos - pos, nil
 }

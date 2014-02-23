@@ -31,3 +31,36 @@ func gouchstoreSeqComparator(a, b []byte) int {
 	}
 	return 1
 }
+
+type seqList []uint64
+
+func (s seqList) Len() int           { return len(s) }
+func (s seqList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s seqList) Less(i, j int) bool { return s[i] < s[j] }
+
+type idList [][]byte
+
+func (idl idList) Len() int           { return len(idl) }
+func (idl idList) Swap(i, j int)      { idl[i], idl[j] = idl[j], idl[i] }
+func (idl idList) Less(i, j int) bool { return gouchstoreIdComparator(idl[i], idl[j]) < 0 }
+
+// like idList, but capabable also sorts the values the same as the ids
+type idAndValueList struct {
+	ids  idList
+	vals idList
+}
+
+func (idavl idAndValueList) Len() int { return idavl.ids.Len() }
+func (idavl idAndValueList) Swap(i, j int) {
+	idavl.ids.Swap(i, j)
+	idavl.vals[i], idavl.vals[j] = idavl.vals[j], idavl.vals[i]
+}
+func (idavl idAndValueList) Less(i, j int) bool { return idavl.ids.Less(i, j) }
+
+type seqModifyActionList []modifyAction
+
+func (s seqModifyActionList) Len() int      { return len(s) }
+func (s seqModifyActionList) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s seqModifyActionList) Less(i, j int) bool {
+	return gouchstoreSeqComparator(s[i].key, s[j].key) < 0
+}
