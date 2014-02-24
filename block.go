@@ -32,6 +32,7 @@ func (g *Gouchstore) gotoEof() error {
 }
 
 func (g *Gouchstore) seekPreviousBlockFrom(pos int64) (int64, byte, error) {
+	pos -= 1 // need to move back at least one byte
 	pos -= pos % gs_BLOCK_SIZE
 	for ; pos >= 0; pos -= gs_BLOCK_SIZE {
 		var err error
