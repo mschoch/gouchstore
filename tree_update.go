@@ -399,7 +399,7 @@ func (g *Gouchstore) modifyNode(req *modifyRequest, np *nodePointer, start, end 
 				// action. Descend into the pointed node with as many actions as
 				// are less than the key here.
 				rangeEnd := start
-				for rangeEnd < end && req.cmp(req.actions[rangeEnd].key, cmpKey) < 0 {
+				for rangeEnd < end && req.cmp(req.actions[rangeEnd].key, cmpKey) <= 0 {
 					rangeEnd++
 				}
 
