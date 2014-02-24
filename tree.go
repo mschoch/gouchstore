@@ -61,7 +61,7 @@ func (g *Gouchstore) btree_lookup(np *nodePointer, indexType int, current *int, 
 	}
 }
 
-func (g *Gouchstore) btree_range(np *nodePointer, indexType int, active *int, startId, endId []byte, compare btreeKeyComparator, cb DocumentInfoCallback, userContext interface{}) error {
+func (g *Gouchstore) btree_range(np *nodePointer, depth, indexType int, active *int, startId, endId []byte, compare btreeKeyComparator, wtcb WalkTreeCallback, userContext interface{}) error {
 	nodeData, err := g.readCompressedDataChunkAt(int64(np.pointer))
 	if err != nil {
 		return err
@@ -73,9 +73,10 @@ func (g *Gouchstore) btree_range(np *nodePointer, indexType int, active *int, st
 			return err
 		}
 		for _, pointer := range node.pointers {
+			wtcb(g, depth, nil, pointer.key, pointer.subtreeSize, pointer.reducedValue, userContext)
 			if *active != 2 && compare(pointer.key, startId) >= 0 {
 				// we need to descend
-				g.btree_range(pointer, indexType, active, startId, endId, compare, cb, userContext)
+				g.btree_range(pointer, depth+1, indexType, active, startId, endId, compare, wtcb, userContext)
 				if *active == 2 {
 					// all done
 					return nil
@@ -97,7 +98,7 @@ func (g *Gouchstore) btree_range(np *nodePointer, indexType int, active *int, st
 					comp = compare(encode_raw48(docInfo.Seq), startId)
 				}
 				if comp >= 0 {
-					cb(g, docInfo, userContext)
+					wtcb(g, depth, docInfo, nil, 0, nil, userContext)
 					*active = 1
 				}
 			} else if *active == 1 && len(endId) != 0 {
@@ -107,7 +108,7 @@ func (g *Gouchstore) btree_range(np *nodePointer, indexType int, active *int, st
 					comp = compare(encode_raw48(docInfo.Seq), endId)
 				}
 				if comp <= 0 {
-					cb(g, docInfo, userContext)
+					wtcb(g, depth, docInfo, nil, 0, nil, userContext)
 				}
 				if comp >= 0 {
 					// all done
@@ -115,7 +116,7 @@ func (g *Gouchstore) btree_range(np *nodePointer, indexType int, active *int, st
 					return nil
 				}
 			} else if *active == 1 && len(endId) == 0 {
-				cb(g, docInfo, userContext)
+				wtcb(g, depth, docInfo, nil, 0, nil, userContext)
 			}
 		}
 		return nil

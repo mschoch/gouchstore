@@ -61,6 +61,9 @@ type DatabaseInfo struct {
 // the provided callback will be invoked for each document in the database.
 type DocumentInfoCallback func(gouchstore *Gouchstore, documentInfo *DocumentInfo, userContext interface{})
 
+// WalkTreeCallback is a function definition which is used for tree walks.
+type WalkTreeCallback func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{})
+
 // Gouchstore gives access to a couchstore database file.
 type Gouchstore struct {
 	file   *os.File
@@ -241,15 +244,26 @@ func (g *Gouchstore) DocumentInfosBySeqs(sequences []uint64) ([]*DocumentInfo, e
 //
 // If endId is the empty string, the iteration will continue to the last document.
 func (g *Gouchstore) AllDocuments(startId, endId string, cb DocumentInfoCallback, userContext interface{}) error {
+	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
+		if documentInfo != nil {
+			cb(gouchstore, documentInfo, userContext)
+		}
+	}
+	return g.WalkIdTree(startId, endId, wtCallback, userContext)
+}
+
+func (g *Gouchstore) WalkIdTree(startId, endId string, wtcb WalkTreeCallback, userContext interface{}) error {
 	active := 0
+	wtcb(g, 0, nil, nil, g.header.byIdRoot.subtreeSize, g.header.byIdRoot.reducedValue, userContext)
 	err := g.btree_range(
 		g.header.byIdRoot,
+		1,
 		gs_INDEX_TYPE_BY_ID,
 		&active,
 		[]byte(startId),
 		[]byte(endId),
 		gouchstoreIdComparator,
-		cb,
+		wtcb,
 		userContext)
 	if err != nil {
 		return err
@@ -266,6 +280,15 @@ func (g *Gouchstore) AllDocuments(startId, endId string, cb DocumentInfoCallback
 //
 // If endId is 0, the iteration will continue to the last document.
 func (g *Gouchstore) ChangesSince(since uint64, till uint64, cb DocumentInfoCallback, userContext interface{}) error {
+	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
+		if documentInfo != nil {
+			cb(gouchstore, documentInfo, userContext)
+		}
+	}
+	return g.WalkSeqTree(since, till, wtCallback, userContext)
+}
+
+func (g *Gouchstore) WalkSeqTree(since uint64, till uint64, wtcb WalkTreeCallback, userContext interface{}) error {
 	// treat till of 0 to mean no end boundary
 	var endId []byte
 	if till == 0 {
@@ -276,12 +299,13 @@ func (g *Gouchstore) ChangesSince(since uint64, till uint64, cb DocumentInfoCall
 	active := 0
 	err := g.btree_range(
 		g.header.bySeqRoot,
+		0,
 		gs_INDEX_TYPE_BY_SEQ,
 		&active,
 		encode_raw48(since),
 		endId,
 		gouchstoreSeqComparator,
-		cb,
+		wtcb,
 		userContext)
 	if err != nil {
 		return err

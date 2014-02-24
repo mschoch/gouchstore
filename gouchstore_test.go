@@ -710,4 +710,131 @@ func TestCreateLargerFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error committing end: %v", err)
 	}
+
+	// check the tree?
+	sanityCheckIdTree(t, db, 10000, 0)
+}
+
+func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
+	defer os.Remove("test.couch")
+	db, err := Open("test.couch", OPEN_CREATE)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	for i := 0; i < 100; i++ {
+		id := "doc-" + strconv.Itoa(i)
+		doc := &Document{
+			ID:   id,
+			Body: []byte(`{"abc":123}`),
+		}
+		docInfo := &DocumentInfo{
+			ID:          id,
+			Rev:         1,
+			ContentMeta: gs_DOC_IS_COMPRESSED,
+		}
+		err := db.saveDocument(doc, docInfo)
+		if err != nil {
+			t.Fatalf("error saving %d: %v", i, err)
+		}
+		// commit every 1000
+		if i%1000 == 0 {
+			err := db.Commit()
+			if err != nil {
+				t.Fatalf("error committing %d: %v", i, err)
+			}
+		}
+	}
+	// final commit
+	err = db.Commit()
+	if err != nil {
+		t.Fatalf("error committing end: %v", err)
+	}
+
+	// check the tree
+	sanityCheckIdTree(t, db, 100, 0)
+
+	// close
+	db.Close()
+
+	// reopen
+	db, err = Open("test.couch", OPEN_CREATE)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// add the same docs again (update them)
+	for i := 0; i < 100; i++ {
+		id := "doc-" + strconv.Itoa(i)
+		doc := &Document{
+			ID:   id,
+			Body: []byte(`{"abc":123}`),
+		}
+		docInfo := &DocumentInfo{
+			ID:          id,
+			Rev:         2,
+			ContentMeta: gs_DOC_IS_COMPRESSED,
+		}
+		err := db.saveDocument(doc, docInfo)
+		if err != nil {
+			t.Fatalf("error saving %d: %v", i, err)
+		}
+
+		// commit every operation this pass
+		err = db.Commit()
+		if err != nil {
+			t.Fatalf("error committing %d: %v", i, err)
+		}
+
+		// check that we still have 100 docs
+		sanityCheckIdTree(t, db, 100, 0)
+
+	}
+	// final commit
+	err = db.Commit()
+	if err != nil {
+		t.Fatalf("error committing end: %v", err)
+	}
+}
+
+type sanityCheckIdTreeContext struct {
+	totalSize    uint64
+	docCount     uint64
+	deletedCount uint64
+}
+
+func sanityCheckIdTree(t *testing.T, db *Gouchstore, docCount, deletedCount uint64) {
+	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
+
+		context := userContext.(*sanityCheckIdTreeContext)
+
+		if documentInfo != nil {
+			context.totalSize += documentInfo.Size
+			if documentInfo.Deleted {
+				context.deletedCount++
+			} else {
+				context.docCount++
+			}
+		}
+	}
+
+	context := new(sanityCheckIdTreeContext)
+	db.WalkIdTree("", "", wtCallback, context)
+	rdocCount, rdeletedCount, rtotalSize := decodeByIdReduce(db.header.byIdRoot.reducedValue)
+	if context.docCount != rdocCount {
+		t.Fatalf("Expected reduced document count %d to match document count %d", rdocCount, context.docCount)
+	}
+	if context.deletedCount != rdeletedCount {
+		t.Fatalf("Expected reduced deleted document count %d to match deleted documnt count %d", rdocCount, context.docCount)
+	}
+	if context.totalSize != rtotalSize {
+		t.Fatalf("Expected reduced total size %d to match total size %d", rtotalSize, context.totalSize)
+	}
+	if rdocCount != docCount {
+		t.Fatalf("Expected document to be %d got %d", docCount, rdocCount)
+	}
+	if rdeletedCount != deletedCount {
+		t.Fatalf("Expected document to be %d got %d", deletedCount, rdeletedCount)
+	}
 }
