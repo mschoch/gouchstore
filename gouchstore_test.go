@@ -857,7 +857,7 @@ func TestRealWorld(t *testing.T) {
 	docInfos := make(map[string]*DocumentInfo)
 	docKeys := make([]string, 0)
 	// iterate through this many operations
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 2000; i++ {
 		operation := rand.Intn(10)
 		if operation < 7 {
 			// add doc
@@ -930,5 +930,56 @@ func TestRealWorld(t *testing.T) {
 
 		// verify that the state matches our expectations
 		sanityCheckIdTree(t, db, docCount, deletedCount)
+	}
+}
+
+func TestAddDocumentNoCompressionToEmpty(t *testing.T) {
+	defer os.Remove("test.couch")
+	db, err := Open("test.couch", OPEN_CREATE)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	// the content in this doc would get snappy compressed
+	doc := &Document{
+		ID:   "newdoc",
+		Body: []byte(`{"abc":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`),
+	}
+	docInfo := &DocumentInfo{
+		ID:          "newdoc",
+		Rev:         7,
+		ContentMeta: 0, // no compression
+	}
+
+	err = db.saveDocument(doc, docInfo)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if db.header.updateSeq != 1 {
+		t.Errorf("expected update seq to be 1, got %d", db.header.updateSeq)
+	}
+
+	if db.header.byIdRoot == nil {
+		t.Errorf("expected by id root to no longer be nil")
+	}
+	if db.header.bySeqRoot == nil {
+		t.Errorf("expected by seq root to no longer be nil")
+	}
+
+	// check document exists
+	assertDocsExistWithContent(t, db, []*Document{doc}, []*DocumentInfo{docInfo})
+
+	// test that another non-existant docs dont exist
+	_, err = db.DocumentInfoById("does-not-exist")
+	if err != gs_ERROR_DOCUMENT_NOT_FOUND {
+		t.Errorf("expected document not found for key `does-not-exist`")
+	}
+
+	// test that another non-existant docs dont exist
+	_, err = db.DocumentInfoBySeq(255)
+	if err != gs_ERROR_DOCUMENT_NOT_FOUND {
+		t.Errorf("expected document not found for seq 255")
 	}
 }
