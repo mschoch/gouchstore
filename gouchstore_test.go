@@ -10,6 +10,7 @@
 package gouchstore
 
 import (
+	"math/rand"
 	"os"
 	"reflect"
 	"strconv"
@@ -823,18 +824,111 @@ func sanityCheckIdTree(t *testing.T, db *Gouchstore, docCount, deletedCount uint
 	db.WalkIdTree("", "", wtCallback, context)
 	rdocCount, rdeletedCount, rtotalSize := decodeByIdReduce(db.header.byIdRoot.reducedValue)
 	if context.docCount != rdocCount {
-		t.Fatalf("Expected reduced document count %d to match document count %d", rdocCount, context.docCount)
+		t.Errorf("Expected reduced document count %d to match document count %d", rdocCount, context.docCount)
 	}
 	if context.deletedCount != rdeletedCount {
-		t.Fatalf("Expected reduced deleted document count %d to match deleted documnt count %d", rdocCount, context.docCount)
+		t.Errorf("Expected reduced deleted document count %d to match deleted documnt count %d", rdocCount, context.docCount)
 	}
 	if context.totalSize != rtotalSize {
-		t.Fatalf("Expected reduced total size %d to match total size %d", rtotalSize, context.totalSize)
+		t.Errorf("Expected reduced total size %d to match total size %d", rtotalSize, context.totalSize)
 	}
 	if rdocCount != docCount {
-		t.Fatalf("Expected document to be %d got %d", docCount, rdocCount)
+		t.Errorf("Expected document to be %d got %d", docCount, rdocCount)
 	}
 	if rdeletedCount != deletedCount {
-		t.Fatalf("Expected document to be %d got %d", deletedCount, rdeletedCount)
+		t.Errorf("Expected document to be %d got %d", deletedCount, rdeletedCount)
+	}
+}
+
+func TestRealWorld(t *testing.T) {
+	// fix the seed for this test so its repeatable
+	rand.Seed(25)
+	defer os.Remove("test.couch")
+	db, err := Open("test.couch", OPEN_CREATE)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	var docCount uint64 = 0
+	var deletedCount uint64 = 0
+	nextDocId := 0
+	docs := make(map[string]*Document)
+	docInfos := make(map[string]*DocumentInfo)
+	docKeys := make([]string, 0)
+	// iterate through this many operations
+	for i := 0; i < 10000; i++ {
+		operation := rand.Intn(10)
+		if operation < 7 {
+			// add doc
+			docId := "doc-" + strconv.Itoa(nextDocId)
+			doc := &Document{
+				ID:   docId,
+				Body: []byte(`{"content":123}`),
+			}
+			nextDocId++
+			docInfo := &DocumentInfo{
+				ID:          docId,
+				Rev:         1,
+				ContentMeta: gs_DOC_IS_COMPRESSED,
+			}
+			err = db.saveDocument(doc, docInfo)
+			if err != nil {
+				t.Error(err)
+			}
+			docs[docId] = doc
+			docInfos[docId] = docInfo
+			docKeys = append(docKeys, docId)
+			docCount++
+		} else if operation < 9 {
+			// update doc
+			docIdIndexToUpdate := rand.Intn(len(docKeys))
+			docIdToUpdate := docKeys[docIdIndexToUpdate]
+			// bump the rev of this doc
+			docInfos[docIdToUpdate].Rev++
+			// now udpate it
+			err = db.saveDocument(docs[docIdToUpdate], docInfos[docIdToUpdate])
+			if err != nil {
+				t.Error(err)
+			}
+		} else {
+			// delete doc
+			if len(docKeys) > 0 {
+				docIdIndexToDelete := rand.Intn(len(docKeys))
+				docIdToDelete := docKeys[docIdIndexToDelete]
+				err = db.saveDocument(nil, docInfos[docIdToDelete])
+				if err != nil {
+					t.Error(err)
+				}
+				docKeys = append(docKeys[:docIdIndexToDelete], docKeys[docIdIndexToDelete+1:]...)
+				delete(docs, docIdToDelete)
+				delete(docInfos, docIdToDelete)
+				docCount--
+				deletedCount++
+			}
+		}
+
+		// commit every 10 operations
+		if i%10 == 0 {
+			err = db.Commit()
+			if err != nil {
+				t.Errorf("error committing %d: %v", i, err)
+			}
+		}
+
+		// close and reopen every 100 operations
+		if i%100 == 0 {
+			err = db.Close()
+			if err != nil {
+				t.Error(err)
+			}
+			db, err = Open("test.couch", 0)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		// verify that the state matches our expectations
+		sanityCheckIdTree(t, db, docCount, deletedCount)
 	}
 }
