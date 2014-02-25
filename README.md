@@ -38,7 +38,7 @@ There are also a few utility programs available in the utils directory.
 		  "HeaderPosition": 233472
 		}
 
-* gsdblist - prints list of document info for docuemnts with ids in the specified range
+* gsdblist - prints list of document info for documents with ids in the specified id range or the specified sequence range
 
 		$ gsdblist -startId ab -endId ac test/couchbase_beer_sample_vbucket.couch
 		{
@@ -49,6 +49,17 @@ There are also a few utility programs available in the utils directory.
 		  "contentMeta": 128,
 		  "deleted": false,
 		  "size": 314
+		}
+		Listed 1 documents
+		$ gsdblist -startSeq 101 -endSeq 101 test/couchbase_beer_sample_vbucket.couch 
+		{
+		  "id": "zea_rotisserie_and_brewery-clearview_light",
+		  "seq": 101,
+		  "rev": 1,
+		  "revMeta": "AAAEENA2njwAAAAAAAAAAA==",
+		  "contentMeta": 128,
+		  "deleted": false,
+		  "size": 167
 		}
 		Listed 1 documents
 
