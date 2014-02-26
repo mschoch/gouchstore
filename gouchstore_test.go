@@ -991,9 +991,12 @@ func TestLocalDocs(t *testing.T) {
 	}
 	defer db.Close()
 
-	_, err = db.LocalDocumentById("doesnotexist")
+	actualLocalDoc, err := db.LocalDocumentById("doesnotexist")
 	if err != gs_ERROR_DOCUMENT_NOT_FOUND {
 		t.Errorf("local document doesnotexist should be not found error, got: %v", err)
+	}
+	if actualLocalDoc != nil {
+		t.Errorf("returned doc should be nil when not found")
 	}
 
 	expectedLocalDoc := &LocalDocument{
@@ -1008,6 +1011,77 @@ func TestLocalDocs(t *testing.T) {
 	}
 	if !reflect.DeepEqual(expectedLocalDoc, localDoc) {
 		t.Errorf("expected: %v, got: %v", expectedLocalDoc, localDoc)
+	}
+
+}
+
+func TestLocalDocsFull(t *testing.T) {
+	defer os.Remove("test.couch")
+	db, err := Open("test.couch", OPEN_CREATE)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	// look for non-existant doc
+	actualLocalDoc, err := db.LocalDocumentById("doesnotexist")
+	if err != gs_ERROR_DOCUMENT_NOT_FOUND {
+		t.Errorf("local document doesnotexist should be not found error, got: %v", err)
+	}
+	if actualLocalDoc != nil {
+		t.Errorf("returned doc should be nil when not found")
+	}
+
+	// add a local doc
+	localDoc := &LocalDocument{
+		ID:      "_local/doc1",
+		Body:    []byte(`{"content": "not replicated"}`),
+		Deleted: false,
+	}
+	err = db.saveLocalDocument(localDoc)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// try and retrieve it
+	actualLocalDoc, err = db.LocalDocumentById(localDoc.ID)
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(localDoc, actualLocalDoc) {
+		t.Errorf("expected: %v, got: %v", localDoc, actualLocalDoc)
+	}
+
+	// now update it
+	localDoc.Body = []byte(`{"content": "has been updated"}`)
+	err = db.saveLocalDocument(localDoc)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// retrieve it again and verify we get the right content
+	actualLocalDoc, err = db.LocalDocumentById(localDoc.ID)
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(localDoc, actualLocalDoc) {
+		t.Errorf("expected: %v, got: %v", localDoc, actualLocalDoc)
+	}
+
+	// now delete it
+	localDoc.Deleted = true
+	err = db.saveLocalDocument(localDoc)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// now verify we cant find it
+	actualLocalDoc, err = db.LocalDocumentById(localDoc.ID)
+	if err != gs_ERROR_DOCUMENT_NOT_FOUND {
+		t.Errorf("deleted local document should be not found error, got: %v", err)
+	}
+	if actualLocalDoc != nil {
+		t.Errorf("returned doc should be nil when not found")
 	}
 
 }

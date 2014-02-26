@@ -555,6 +555,43 @@ func (g *Gouchstore) LocalDocumentById(id string) (*LocalDocument, error) {
 	return resultDocPointer, nil
 }
 
+// SaveLocalDocument not public yet while under development
+func (g *Gouchstore) saveLocalDocument(localDoc *LocalDocument) error {
+	ldUpdate := modifyAction{
+		key:   []byte(localDoc.ID),
+		value: localDoc.Body,
+	}
+	if localDoc.Deleted {
+		ldUpdate.typ = gs_ACTION_REMOVE
+	} else {
+		ldUpdate.typ = gs_ACTION_INSERT
+	}
+
+	req := &modifyRequest{
+		cmp:              gouchstoreIdComparator,
+		actions:          []modifyAction{ldUpdate},
+		reduce:           nil,
+		rereduce:         nil,
+		fetchCallback:    nil,
+		compacting:       false,
+		enablePurging:    false,
+		purgeKP:          nil,
+		purgeKV:          nil,
+		kpChunkThreshold: gs_DB_CHUNK_THRESHOLD,
+		kvChunkThreshold: gs_DB_CHUNK_THRESHOLD,
+	}
+
+	nroot, err := g.modifyBtree(req, g.header.localDocsRoot)
+	if err != nil {
+		return err
+	}
+	if nroot != g.header.localDocsRoot {
+		g.header.localDocsRoot = nroot
+	}
+
+	return nil
+}
+
 // Close will close the underlying file handle and release any resources associated with the Gouchstore object.
 func (g *Gouchstore) Close() error {
 	return g.file.Close()
