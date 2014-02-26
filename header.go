@@ -67,13 +67,34 @@ func (h *header) toBytes() []byte {
 }
 
 func (h *header) String() string {
-	rv := fmt.Sprintf("Disk Version: %d\n", h.diskVersion)
+	rv := fmt.Sprintf("Disk Version: %d (0x%x)\n", h.diskVersion, h.diskVersion)
 	rv += fmt.Sprintf("Update Seq: %d\n", h.updateSeq)
 	rv += fmt.Sprintf("Purge Seq: %d\n", h.purgeSeq)
-	rv += fmt.Sprintf("Purge Pointer: %d\n", h.purgePtr)
-	rv += fmt.Sprintf("By ID Root: %v\n", h.byIdRoot)
-	rv += fmt.Sprintf("By Seq Root: %v\n", h.bySeqRoot)
-	rv += fmt.Sprintf("Local Docs Root: %v\n", h.localDocsRoot)
+	rv += fmt.Sprintf("Purge Pointer: %d (0x%x)\n", h.purgePtr, h.purgePtr)
+	if h.bySeqRoot != nil {
+		rv += fmt.Sprintf("By Sequence Pointer: %d (0x%x)\n", h.bySeqRoot.pointer, h.bySeqRoot.pointer)
+		rv += fmt.Sprintf("By Sequence Subtree Size: %d (0x%x)\n", h.bySeqRoot.subtreeSize, h.bySeqRoot.subtreeSize)
+		count := decode_raw40(h.bySeqRoot.reducedValue)
+		rv += fmt.Sprintf("By Sequence Reduced Count: %d\n", count)
+	} else {
+		rv += fmt.Sprintf("By Sequence Pointer: nil\n")
+	}
+	if h.byIdRoot != nil {
+		rv += fmt.Sprintf("By ID Pointer: %d (0x%x)\n", h.byIdRoot.pointer, h.byIdRoot.pointer)
+		rv += fmt.Sprintf("By ID Subtree Size: %d (0x%x)\n", h.byIdRoot.subtreeSize, h.byIdRoot.subtreeSize)
+		notDeleted, deleted, size := decodeByIdReduce(h.byIdRoot.reducedValue)
+		rv += fmt.Sprintf("By ID Reduced Document Count: %d\n", notDeleted)
+		rv += fmt.Sprintf("By ID Reduced Deleted Document Count: %d\n", deleted)
+		rv += fmt.Sprintf("By ID Reduced Size: %d\n", size)
+	} else {
+		rv += fmt.Sprintf("By ID Pointer: nil\n")
+	}
+	if h.localDocsRoot != nil {
+		rv += fmt.Sprintf("Local Docs Pointer: %d (0x%x)\n", h.localDocsRoot.pointer, h.localDocsRoot.pointer)
+		rv += fmt.Sprintf("Local Docs Subtree Size: %d (0x%x)\n", h.localDocsRoot.subtreeSize, h.localDocsRoot.subtreeSize)
+	} else {
+		rv += fmt.Sprintf("Local Docs Pointer: nil\n")
+	}
 	return rv
 }
 

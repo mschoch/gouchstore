@@ -40,7 +40,7 @@ func (n *node) String() string {
 			}
 			rv += fmt.Sprintf("%v", p)
 		}
-		rv += "]\n"
+		rv += "\n]\n"
 	} else {
 		rv = "Leaf Node: [\n"
 		for i, d := range n.documents {
@@ -49,7 +49,7 @@ func (n *node) String() string {
 			}
 			rv += fmt.Sprintf("%v", d)
 		}
-		rv += "]\n"
+		rv += "\n]\n"
 	}
 	return rv
 }
@@ -111,7 +111,7 @@ func (np *nodePointer) String() string {
 	if np.key == nil {
 		return fmt.Sprintf("Root Pointer: %d Subtree Size: %d ReduceValue: % x", np.pointer, np.subtreeSize, np.reducedValue)
 	}
-	return fmt.Sprintf("Key: `%s` (%x) Pointer: %d Subtree Size: %d ReduceValue: % x", np.key, np.key, np.pointer, np.subtreeSize, np.reducedValue)
+	return fmt.Sprintf("Key: '%s' (%x) Pointer: %d Subtree Size: %d ReduceValue: % x", np.key, np.key, np.pointer, np.subtreeSize, np.reducedValue)
 }
 
 func decodeInteriorBtreeNode(nodeData []byte, indexType int) (*node, error) {
@@ -207,4 +207,24 @@ func encodeKeyValue(key, value []byte) []byte {
 	buf.Write(key)
 	buf.Write(value)
 	return buf.Bytes()
+}
+
+type keyValueIterator struct {
+	data []byte
+	pos  int
+}
+
+func newKeyValueIterator(data []byte) *keyValueIterator {
+	return &keyValueIterator{
+		data: data,
+	}
+}
+
+func (kvi *keyValueIterator) Next() ([]byte, []byte) {
+	if kvi.pos < len(kvi.data) {
+		key, value, end := decodeKeyValue(kvi.data, kvi.pos)
+		kvi.pos = end
+		return key, value
+	}
+	return nil, nil
 }

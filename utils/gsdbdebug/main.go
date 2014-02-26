@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/mschoch/gouchstore"
@@ -46,5 +47,5 @@ func main() {
 		fmt.Println(err)
 	}
 
-	db.DebugAddress(offsetAddress, *printRawBytes, *readLargeChunk, *indexType)
+	db.DebugAddress(os.Stdout, offsetAddress, *printRawBytes, *readLargeChunk, *indexType)
 }

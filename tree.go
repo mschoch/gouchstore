@@ -11,116 +11,110 @@ package gouchstore
 
 import ()
 
-func (g *Gouchstore) btree_lookup(np *nodePointer, indexType int, current *int, ids [][]byte, compare btreeKeyComparator, cb DocumentInfoCallback, userContext interface{}) error {
-	nodeData, err := g.readCompressedDataChunkAt(int64(np.pointer))
-	if err != nil {
-		return err
-	}
-
-	if nodeData[0] == gs_BTREE_INTERIOR {
-		node, err := decodeInteriorBtreeNode(nodeData, indexType)
-		if err != nil {
-			return err
-		}
-		for _, pointer := range node.pointers {
-			c := ids[*current]
-			if compare(pointer.key, c) >= 0 {
-				// we need to descend
-				g.btree_lookup(pointer, indexType, current, ids, compare, cb, userContext)
-				if *current == len(ids) {
-					// all done
-					return nil
-				}
-			}
-		}
-		return nil
-	} else if nodeData[0] == gs_BTREE_LEAF {
-		node, err := decodeLeafBtreeNode(nodeData, indexType)
-		if err != nil {
-			return err
-		}
-		for _, docInfo := range node.documents {
-			var comp int
-			if indexType == gs_INDEX_TYPE_BY_ID {
-				comp = compare([]byte(docInfo.ID), ids[*current])
-			} else {
-				comp = compare(encode_raw48(docInfo.Seq), ids[*current])
-			}
-			if comp == 0 {
-				cb(g, docInfo, userContext)
-				*current++
-				if *current == len(ids) {
-					// all done
-					return nil
-				}
-			}
-		}
-		return nil
-	} else {
-		return gs_ERROR_INVALID_BTREE_NODE_TYPE
-	}
+type lookupContext struct {
+	gouchstore           *Gouchstore
+	documentInfoCallback DocumentInfoCallback
+	walkTreeCallback     WalkTreeCallback
+	indexType            int
+	depth                int
+	callbackContext      interface{}
 }
 
-func (g *Gouchstore) btree_range(np *nodePointer, depth, indexType int, active *int, startId, endId []byte, compare btreeKeyComparator, wtcb WalkTreeCallback, userContext interface{}) error {
-	nodeData, err := g.readCompressedDataChunkAt(int64(np.pointer))
+type lookupRequest struct {
+	compare         btreeKeyComparator
+	keys            [][]byte
+	fold            bool
+	inFold          bool
+	fetchCallback   callback
+	nodeCallback    callback
+	callbackContext interface{}
+}
+
+type callback func(req *lookupRequest, key []byte, value []byte) error
+
+func (g *Gouchstore) btreeLookupInner(req *lookupRequest, diskPos uint64, current, end int) error {
+	nodeData, err := g.readCompressedDataChunkAt(int64(diskPos))
 	if err != nil {
 		return err
 	}
 
 	if nodeData[0] == gs_BTREE_INTERIOR {
-		node, err := decodeInteriorBtreeNode(nodeData, indexType)
-		if err != nil {
-			return err
-		}
-		for _, pointer := range node.pointers {
-			wtcb(g, depth, nil, pointer.key, pointer.subtreeSize, pointer.reducedValue, userContext)
-			if *active != 2 && compare(pointer.key, startId) >= 0 {
-				// we need to descend
-				g.btree_range(pointer, depth+1, indexType, active, startId, endId, compare, wtcb, userContext)
-				if *active == 2 {
-					// all done
-					return nil
+		kvIterator := newKeyValueIterator(nodeData[1:])
+		for k, v := kvIterator.Next(); k != nil && current < end; k, v = kvIterator.Next() {
+			cmp := req.compare(k, req.keys[current])
+			if cmp >= 0 {
+				if req.fold {
+					req.inFold = true
+				}
+
+				// Descend into the pointed to node.
+				// with all keys < item key.
+				lastItem := current + 1
+				for lastItem < end && req.compare(k, req.keys[lastItem]) >= 0 {
+					lastItem++
+				}
+
+				if req.nodeCallback != nil {
+					err = req.nodeCallback(req, k, v)
+					if err != nil {
+						return err
+					}
+				}
+
+				valNodePointer := decodeNodePointer(v)
+				err = g.btreeLookupInner(req, valNodePointer.pointer, current, lastItem)
+				if err != nil {
+					return err
+				}
+
+				if !req.inFold {
+					current = lastItem
+				}
+				if req.nodeCallback != nil {
+					err = req.nodeCallback(req, nil, nil)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
-		return nil
 	} else if nodeData[0] == gs_BTREE_LEAF {
-		node, err := decodeLeafBtreeNode(nodeData, indexType)
-		if err != nil {
-			return err
-		}
-		for _, docInfo := range node.documents {
-			var comp int
-			if *active == 0 {
-				if indexType == gs_INDEX_TYPE_BY_ID {
-					comp = compare([]byte(docInfo.ID), startId)
-				} else {
-					comp = compare(encode_raw48(docInfo.Seq), startId)
+		kvIterator := newKeyValueIterator(nodeData[1:])
+		for k, v := kvIterator.Next(); k != nil && current < end; k, v = kvIterator.Next() {
+			cmp := req.compare(k, req.keys[current])
+			if cmp >= 0 && req.fold && !req.inFold {
+				req.inFold = true
+			} else if req.inFold && (current+1) < end && req.compare(k, req.keys[current+1]) > 0 {
+				//We've hit a key past the end of our range.
+				req.inFold = false
+				req.fold = false
+				current = end
+			}
+
+			if cmp == 0 || (cmp > 0 && req.inFold) {
+				// Found
+				err = req.fetchCallback(req, k, v)
+				if err != nil {
+					return err
 				}
-				if comp >= 0 {
-					wtcb(g, depth, docInfo, nil, 0, nil, userContext)
-					*active = 1
+
+				if !req.inFold {
+					current++
 				}
-			} else if *active == 1 && len(endId) != 0 {
-				if indexType == gs_INDEX_TYPE_BY_ID {
-					comp = compare([]byte(docInfo.ID), endId)
-				} else {
-					comp = compare(encode_raw48(docInfo.Seq), endId)
-				}
-				if comp <= 0 {
-					wtcb(g, depth, docInfo, nil, 0, nil, userContext)
-				}
-				if comp >= 0 {
-					// all done
-					*active = 2
-					return nil
-				}
-			} else if *active == 1 && len(endId) == 0 {
-				wtcb(g, depth, docInfo, nil, 0, nil, userContext)
 			}
 		}
-		return nil
-	} else {
-		return gs_ERROR_INVALID_BTREE_NODE_TYPE
 	}
+
+	//Any remaining items are not found.
+	for current < end && !req.fold {
+		err = req.fetchCallback(req, req.keys[current], nil)
+		current++
+	}
+
+	return nil
+}
+
+func (g *Gouchstore) btreeLookup(req *lookupRequest, rootPointer uint64) error {
+	req.inFold = false
+	return g.btreeLookupInner(req, rootPointer, 0, len(req.keys))
 }

@@ -42,7 +42,7 @@ func (di *DocumentInfo) compressed() bool {
 }
 
 func (di *DocumentInfo) String() string {
-	return fmt.Sprintf("ID: `%s` Seq: %d Rev: %d Deleted: %t Size: %d BodyPosition: %d (0x%x)", di.ID, di.Seq, di.Rev, di.Deleted, di.Size, di.bodyPosition, di.bodyPosition)
+	return fmt.Sprintf("ID: '%s' Seq: %d Rev: %d Deleted: %t Size: %d BodyPosition: %d (0x%x)", di.ID, di.Seq, di.Rev, di.Deleted, di.Size, di.bodyPosition, di.bodyPosition)
 }
 
 // DatabaseInfo describes the database as a whole.
@@ -130,21 +130,12 @@ func gouchstoreFetchCallback(g *Gouchstore, docInfo *DocumentInfo, userContext i
 
 // DocumentInfoById returns DocumentInfo for a single document with the specified ID.
 func (g *Gouchstore) DocumentInfoById(id string) (*DocumentInfo, error) {
-	current := 0
-	resultList := make([]*DocumentInfo, 0)
-	err := g.btree_lookup(
-		g.header.byIdRoot,
-		gs_INDEX_TYPE_BY_ID,
-		&current,
-		[][]byte{[]byte(id)},
-		gouchstoreIdComparator,
-		gouchstoreFetchCallback,
-		&resultList)
+	docInfos, err := g.DocumentInfosByIds([]string{id})
 	if err != nil {
 		return nil, err
 	}
-	if len(resultList) > 0 {
-		return resultList[0], nil
+	if len(docInfos) == 1 {
+		return docInfos[0], nil
 	}
 	return nil, gs_ERROR_DOCUMENT_NOT_FOUND
 }
@@ -165,39 +156,78 @@ func (g *Gouchstore) DocumentInfosByIds(identifiers []string) ([]*DocumentInfo, 
 		idsBytes[i] = []byte(id)
 	}
 
-	current := 0
 	resultList := make([]*DocumentInfo, 0)
-	err := g.btree_lookup(
-		g.header.byIdRoot,
-		gs_INDEX_TYPE_BY_ID,
-		&current,
-		idsBytes,
-		gouchstoreIdComparator,
-		gouchstoreFetchCallback,
-		&resultList)
+
+	lc := lookupContext{
+		gouchstore:           g,
+		documentInfoCallback: gouchstoreFetchCallback,
+		callbackContext:      &resultList,
+		indexType:            gs_INDEX_TYPE_BY_ID,
+	}
+
+	lr := lookupRequest{
+		compare:         gouchstoreIdComparator,
+		keys:            idsBytes,
+		fetchCallback:   lookupCallback,
+		fold:            false,
+		callbackContext: &lc,
+	}
+
+	err := g.btreeLookup(&lr, g.header.byIdRoot.pointer)
 	if err != nil {
 		return nil, err
 	}
+
 	return resultList, nil
+}
+
+func lookupCallback(req *lookupRequest, key []byte, value []byte) error {
+	if value == nil {
+		return nil
+	}
+
+	context := req.callbackContext.(*lookupContext)
+
+	docinfo := DocumentInfo{}
+	if context.indexType == gs_INDEX_TYPE_BY_ID {
+		docinfo.ID = string(key)
+		decodeByIdValue(&docinfo, value)
+	} else if context.indexType == gs_INDEX_TYPE_BY_SEQ {
+		docinfo.Seq = decode_raw48(key)
+		decodeBySeqValue(&docinfo, value)
+	}
+
+	if context.walkTreeCallback != nil {
+		context.walkTreeCallback(context.gouchstore, context.depth, &docinfo, nil, 0, nil, context.callbackContext)
+	} else if context.documentInfoCallback != nil {
+		context.documentInfoCallback(context.gouchstore, &docinfo, context.callbackContext)
+	}
+
+	return nil
+}
+
+func walkNodeCallback(req *lookupRequest, key []byte, value []byte) error {
+	context := req.callbackContext.(*lookupContext)
+	if value == nil {
+		context.depth--
+		return nil
+	} else {
+		valueNodePointer := decodeNodePointer(value)
+		valueNodePointer.key = key
+		context.walkTreeCallback(context.gouchstore, context.depth, nil, key, valueNodePointer.subtreeSize, valueNodePointer.reducedValue, context.callbackContext)
+		context.depth++
+		return nil
+	}
 }
 
 // DocumentInfoBySeq returns DocumentInfo for a single document with the specified sequence number.
 func (g *Gouchstore) DocumentInfoBySeq(seq uint64) (*DocumentInfo, error) {
-	current := 0
-	resultList := make([]*DocumentInfo, 0)
-	err := g.btree_lookup(
-		g.header.bySeqRoot,
-		gs_INDEX_TYPE_BY_SEQ,
-		&current,
-		[][]byte{encode_raw48(seq)},
-		gouchstoreSeqComparator,
-		gouchstoreFetchCallback,
-		&resultList)
+	docInfos, err := g.DocumentInfosBySeqs([]uint64{seq})
 	if err != nil {
 		return nil, err
 	}
-	if len(resultList) > 0 {
-		return resultList[0], nil
+	if len(docInfos) == 1 {
+		return docInfos[0], nil
 	}
 	return nil, gs_ERROR_DOCUMENT_NOT_FOUND
 }
@@ -219,19 +249,28 @@ func (g *Gouchstore) DocumentInfosBySeqs(sequences []uint64) ([]*DocumentInfo, e
 		idsBytes[i] = encode_raw48(seq)
 	}
 
-	current := 0
 	resultList := make([]*DocumentInfo, 0)
-	err := g.btree_lookup(
-		g.header.bySeqRoot,
-		gs_INDEX_TYPE_BY_SEQ,
-		&current,
-		idsBytes,
-		gouchstoreSeqComparator,
-		gouchstoreFetchCallback,
-		&resultList)
+
+	lc := lookupContext{
+		gouchstore:           g,
+		documentInfoCallback: gouchstoreFetchCallback,
+		callbackContext:      &resultList,
+		indexType:            gs_INDEX_TYPE_BY_SEQ,
+	}
+
+	lr := lookupRequest{
+		compare:         gouchstoreSeqComparator,
+		keys:            idsBytes,
+		fetchCallback:   lookupCallback,
+		fold:            false,
+		callbackContext: &lc,
+	}
+
+	err := g.btreeLookup(&lr, g.header.bySeqRoot.pointer)
 	if err != nil {
 		return nil, err
 	}
+
 	return resultList, nil
 }
 
@@ -253,21 +292,35 @@ func (g *Gouchstore) AllDocuments(startId, endId string, cb DocumentInfoCallback
 }
 
 func (g *Gouchstore) WalkIdTree(startId, endId string, wtcb WalkTreeCallback, userContext interface{}) error {
-	active := 0
+
 	wtcb(g, 0, nil, nil, g.header.byIdRoot.subtreeSize, g.header.byIdRoot.reducedValue, userContext)
-	err := g.btree_range(
-		g.header.byIdRoot,
-		1,
-		gs_INDEX_TYPE_BY_ID,
-		&active,
-		[]byte(startId),
-		[]byte(endId),
-		gouchstoreIdComparator,
-		wtcb,
-		userContext)
+
+	lc := lookupContext{
+		gouchstore:       g,
+		walkTreeCallback: wtcb,
+		callbackContext:  userContext,
+		indexType:        gs_INDEX_TYPE_BY_ID,
+	}
+
+	keys := [][]byte{[]byte(startId)}
+	if endId != "" {
+		keys = append(keys, []byte(endId))
+	}
+
+	lr := lookupRequest{
+		compare:         gouchstoreIdComparator,
+		keys:            keys,
+		fetchCallback:   lookupCallback,
+		nodeCallback:    walkNodeCallback,
+		fold:            true,
+		callbackContext: &lc,
+	}
+
+	err := g.btreeLookup(&lr, g.header.byIdRoot.pointer)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -289,27 +342,35 @@ func (g *Gouchstore) ChangesSince(since uint64, till uint64, cb DocumentInfoCall
 }
 
 func (g *Gouchstore) WalkSeqTree(since uint64, till uint64, wtcb WalkTreeCallback, userContext interface{}) error {
-	// treat till of 0 to mean no end boundary
-	var endId []byte
-	if till == 0 {
-		endId = []byte{}
-	} else {
-		endId = encode_raw48(till)
+
+	wtcb(g, 0, nil, nil, g.header.bySeqRoot.subtreeSize, g.header.bySeqRoot.reducedValue, userContext)
+
+	lc := lookupContext{
+		gouchstore:       g,
+		walkTreeCallback: wtcb,
+		callbackContext:  userContext,
+		indexType:        gs_INDEX_TYPE_BY_SEQ,
 	}
-	active := 0
-	err := g.btree_range(
-		g.header.bySeqRoot,
-		0,
-		gs_INDEX_TYPE_BY_SEQ,
-		&active,
-		encode_raw48(since),
-		endId,
-		gouchstoreSeqComparator,
-		wtcb,
-		userContext)
+
+	keys := [][]byte{encode_raw48(since)}
+	if till != 0 {
+		keys = append(keys, encode_raw48(till))
+	}
+
+	lr := lookupRequest{
+		compare:         gouchstoreSeqComparator,
+		keys:            keys,
+		fetchCallback:   lookupCallback,
+		nodeCallback:    walkNodeCallback,
+		fold:            true,
+		callbackContext: &lc,
+	}
+
+	err := g.btreeLookup(&lr, g.header.bySeqRoot.pointer)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
