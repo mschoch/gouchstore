@@ -507,6 +507,46 @@ func (g *Gouchstore) DatabaseInfo() (*DatabaseInfo, error) {
 	return &rv, nil
 }
 
+func localLookupCallback(req *lookupRequest, key []byte, value []byte) error {
+	localDocPointer := req.callbackContext.(*Document)
+	if value == nil {
+		return nil
+	}
+
+	(*localDocPointer).ID = string(key)
+	(*localDocPointer).Body = value
+
+	return nil
+}
+
+// DocumentById returns the Document with the specified identifier.
+func (g *Gouchstore) LocalDocumentById(id string) (*Document, error) {
+	if g.header.localDocsRoot == nil {
+		return nil, gs_ERROR_DOCUMENT_NOT_FOUND
+	}
+
+	resultDocPointer := &Document{}
+
+	lr := lookupRequest{
+		compare:         gouchstoreIdComparator,
+		keys:            [][]byte{[]byte(id)},
+		fetchCallback:   localLookupCallback,
+		fold:            false,
+		callbackContext: resultDocPointer,
+	}
+
+	err := g.btreeLookup(&lr, g.header.localDocsRoot.pointer)
+	if err != nil {
+		return nil, err
+	}
+
+	if resultDocPointer.ID == "" {
+		return nil, gs_ERROR_DOCUMENT_NOT_FOUND
+	}
+
+	return resultDocPointer, nil
+}
+
 // Close will close the underlying file handle and release any resources associated with the Gouchstore object.
 func (g *Gouchstore) Close() error {
 	return g.file.Close()

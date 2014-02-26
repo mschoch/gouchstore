@@ -983,3 +983,30 @@ func TestAddDocumentNoCompressionToEmpty(t *testing.T) {
 		t.Errorf("expected document not found for seq 255")
 	}
 }
+
+func TestLocalDocs(t *testing.T) {
+	db, err := Open(testFileName, OPEN_RDONLY)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	_, err = db.LocalDocumentById("doesnotexist")
+	if err != gs_ERROR_DOCUMENT_NOT_FOUND {
+		t.Errorf("local document doesnotexist should be not found error, got: %v", err)
+	}
+
+	expectedLocalDoc := &Document{
+		ID:   "_local/vbstate",
+		Body: []byte(`{"state": "active", "checkpoint_id": "2", "max_deleted_seqno": "0"}`),
+	}
+
+	localDoc, err := db.LocalDocumentById("_local/vbstate")
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(expectedLocalDoc, localDoc) {
+		t.Errorf("expected: %v, got: %v", expectedLocalDoc, localDoc)
+	}
+
+}
