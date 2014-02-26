@@ -21,6 +21,13 @@ type Document struct {
 	Body []byte
 }
 
+// LocalDocument represents a local (non-replicated) document.
+type LocalDocument struct {
+	ID      string
+	Body    []byte
+	Deleted bool
+}
+
 // DocumentInfo is document meta-data.
 type DocumentInfo struct {
 	ID           string `json:"id"`           // document identifier
@@ -508,24 +515,25 @@ func (g *Gouchstore) DatabaseInfo() (*DatabaseInfo, error) {
 }
 
 func localLookupCallback(req *lookupRequest, key []byte, value []byte) error {
-	localDocPointer := req.callbackContext.(*Document)
+	localDocPointer := req.callbackContext.(*LocalDocument)
 	if value == nil {
 		return nil
 	}
 
 	(*localDocPointer).ID = string(key)
 	(*localDocPointer).Body = value
+	(*localDocPointer).Deleted = false
 
 	return nil
 }
 
-// DocumentById returns the Document with the specified identifier.
-func (g *Gouchstore) LocalDocumentById(id string) (*Document, error) {
+// LocalDocumentById returns the LocalDocument with the specified identifier.
+func (g *Gouchstore) LocalDocumentById(id string) (*LocalDocument, error) {
 	if g.header.localDocsRoot == nil {
 		return nil, gs_ERROR_DOCUMENT_NOT_FOUND
 	}
 
-	resultDocPointer := &Document{}
+	resultDocPointer := &LocalDocument{}
 
 	lr := lookupRequest{
 		compare:         gouchstoreIdComparator,

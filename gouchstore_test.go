@@ -996,9 +996,10 @@ func TestLocalDocs(t *testing.T) {
 		t.Errorf("local document doesnotexist should be not found error, got: %v", err)
 	}
 
-	expectedLocalDoc := &Document{
-		ID:   "_local/vbstate",
-		Body: []byte(`{"state": "active", "checkpoint_id": "2", "max_deleted_seqno": "0"}`),
+	expectedLocalDoc := &LocalDocument{
+		ID:      "_local/vbstate",
+		Body:    []byte(`{"state": "active", "checkpoint_id": "2", "max_deleted_seqno": "0"}`),
+		Deleted: false,
 	}
 
 	localDoc, err := db.LocalDocumentById("_local/vbstate")
