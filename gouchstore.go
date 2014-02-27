@@ -411,13 +411,13 @@ func (g *Gouchstore) DocumentByDocumentInfo(docInfo *DocumentInfo) (*Document, e
 	return &rv, nil
 }
 
-// SaveDocument not public yet while under development
-func (g *Gouchstore) saveDocument(doc *Document, docInfo *DocumentInfo) error {
-	return g.saveDocuments([]*Document{doc}, []*DocumentInfo{docInfo})
+// SaveDocument stores the document, if doc is nil, the document will be deleted
+func (g *Gouchstore) SaveDocument(doc *Document, docInfo *DocumentInfo) error {
+	return g.SaveDocuments([]*Document{doc}, []*DocumentInfo{docInfo})
 }
 
-// SaveDocuments not public yet while under development
-func (g *Gouchstore) saveDocuments(docs []*Document, docInfos []*DocumentInfo) error {
+// SaveDocuments stores multiple documents at a time
+func (g *Gouchstore) SaveDocuments(docs []*Document, docInfos []*DocumentInfo) error {
 
 	numDocs := len(docs)
 	seqklist := make([][]byte, numDocs)

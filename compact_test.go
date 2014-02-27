@@ -24,19 +24,19 @@ func TestCompact(t *testing.T) {
 		ContentMeta: gs_DOC_IS_COMPRESSED,
 	}
 
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
 
 	doc.Body = []byte(`{"abc":2}`)
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
 
 	doc.Body = []byte(`{"abc":3}`)
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -81,7 +81,7 @@ func TestCompactionLarger(t *testing.T) {
 				Rev:         uint64(j + 1),
 				ContentMeta: gs_DOC_IS_COMPRESSED,
 			}
-			err := db.saveDocument(doc, docInfo)
+			err := db.SaveDocument(doc, docInfo)
 			if err != nil {
 				t.Fatalf("error saving %d: %v", i, err)
 			}

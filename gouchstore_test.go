@@ -356,7 +356,7 @@ func TestAddDocumentToEmpty(t *testing.T) {
 		ContentMeta: gs_DOC_IS_COMPRESSED,
 	}
 
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -406,7 +406,7 @@ func TestAddMultipleDocumentsToEmpty(t *testing.T) {
 		ContentMeta: gs_DOC_IS_COMPRESSED,
 	}
 
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -436,7 +436,7 @@ func TestAddMultipleDocumentsToEmpty(t *testing.T) {
 		ContentMeta: gs_DOC_IS_COMPRESSED,
 	}
 
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -467,7 +467,7 @@ func TestUpdateDocument(t *testing.T) {
 		ContentMeta: gs_DOC_IS_COMPRESSED,
 	}
 
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -497,7 +497,7 @@ func TestUpdateDocument(t *testing.T) {
 		ContentMeta: gs_DOC_IS_COMPRESSED,
 	}
 
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -529,7 +529,7 @@ func TestDeleteDocument(t *testing.T) {
 	}
 
 	// add a document
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -542,7 +542,7 @@ func TestDeleteDocument(t *testing.T) {
 		ContentMeta: gs_DOC_IS_COMPRESSED,
 	}
 
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -651,7 +651,7 @@ func TestComittedChangesPersist(t *testing.T) {
 		},
 	}
 
-	err = db.saveDocuments(docs, docInfos)
+	err = db.SaveDocuments(docs, docInfos)
 	if err != nil {
 		t.Error(err)
 	}
@@ -694,7 +694,7 @@ func TestCreateLargerFile(t *testing.T) {
 			Rev:         1,
 			ContentMeta: gs_DOC_IS_COMPRESSED,
 		}
-		err := db.saveDocument(doc, docInfo)
+		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
 			t.Fatalf("error saving %d: %v", i, err)
 		}
@@ -735,7 +735,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 			Rev:         1,
 			ContentMeta: gs_DOC_IS_COMPRESSED,
 		}
-		err := db.saveDocument(doc, docInfo)
+		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
 			t.Fatalf("error saving %d: %v", i, err)
 		}
@@ -777,7 +777,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 			Rev:         2,
 			ContentMeta: gs_DOC_IS_COMPRESSED,
 		}
-		err := db.saveDocument(doc, docInfo)
+		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
 			t.Fatalf("error saving %d: %v", i, err)
 		}
@@ -872,7 +872,7 @@ func TestRealWorld(t *testing.T) {
 				Rev:         1,
 				ContentMeta: gs_DOC_IS_COMPRESSED,
 			}
-			err = db.saveDocument(doc, docInfo)
+			err = db.SaveDocument(doc, docInfo)
 			if err != nil {
 				t.Error(err)
 			}
@@ -887,7 +887,7 @@ func TestRealWorld(t *testing.T) {
 			// bump the rev of this doc
 			docInfos[docIdToUpdate].Rev++
 			// now udpate it
-			err = db.saveDocument(docs[docIdToUpdate], docInfos[docIdToUpdate])
+			err = db.SaveDocument(docs[docIdToUpdate], docInfos[docIdToUpdate])
 			if err != nil {
 				t.Error(err)
 			}
@@ -896,7 +896,7 @@ func TestRealWorld(t *testing.T) {
 			if len(docKeys) > 0 {
 				docIdIndexToDelete := rand.Intn(len(docKeys))
 				docIdToDelete := docKeys[docIdIndexToDelete]
-				err = db.saveDocument(nil, docInfos[docIdToDelete])
+				err = db.SaveDocument(nil, docInfos[docIdToDelete])
 				if err != nil {
 					t.Error(err)
 				}
@@ -952,7 +952,7 @@ func TestAddDocumentNoCompressionToEmpty(t *testing.T) {
 		ContentMeta: 0, // no compression
 	}
 
-	err = db.saveDocument(doc, docInfo)
+	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
