@@ -2,7 +2,7 @@
 
 A native go library for working with [couchstore](https://github.com/couchbase/couchstore) files.
 
-NOTE: currently only read-only operations are supported
+NOTE: Save*() and Compact() methods are experimental.  Use at your own risk.
 
 ## Using
 
