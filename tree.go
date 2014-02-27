@@ -21,6 +21,7 @@ type lookupContext struct {
 }
 
 type lookupRequest struct {
+	gouchstore      *Gouchstore
 	compare         btreeKeyComparator
 	keys            [][]byte
 	fold            bool

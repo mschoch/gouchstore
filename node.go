@@ -111,7 +111,11 @@ func (np *nodePointer) String() string {
 	if np.key == nil {
 		return fmt.Sprintf("Root Pointer: %d Subtree Size: %d ReduceValue: % x", np.pointer, np.subtreeSize, np.reducedValue)
 	}
-	return fmt.Sprintf("Key: '%s' (%x) Pointer: %d Subtree Size: %d ReduceValue: % x", np.key, np.key, np.pointer, np.subtreeSize, np.reducedValue)
+	if matchLikelyKey.Match(np.key) {
+		return fmt.Sprintf("Key: '%s' (% x) Pointer: %d Subtree Size: %d ReduceValue: % x", np.key, np.key, np.pointer, np.subtreeSize, np.reducedValue)
+	} else {
+		return fmt.Sprintf("Key: (% x) Pointer: %d Subtree Size: %d ReduceValue: % x", np.key, np.pointer, np.subtreeSize, np.reducedValue)
+	}
 }
 
 func decodeInteriorBtreeNode(nodeData []byte, indexType int) (*node, error) {

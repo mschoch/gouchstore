@@ -790,7 +790,58 @@ func makeModifyResult(req *modifyRequest) *modifyResult {
 	return &rv
 }
 
+func newBtreeModifyResult(cmp btreeKeyComparator, reduce reduceFunc, rereduce reduceFunc, reduceContext interface{}, kvChunkThreshold, kpChunkThreshold int) *modifyResult {
+	rq := modifyRequest{
+		cmp:              cmp,
+		actions:          []modifyAction{},
+		fetchCallback:    nil,
+		reduce:           reduce,
+		rereduce:         rereduce,
+		reduceContext:    reduceContext,
+		compacting:       true,
+		enablePurging:    false,
+		purgeKP:          nil,
+		purgeKV:          nil,
+		kvChunkThreshold: kvChunkThreshold,
+		kpChunkThreshold: kpChunkThreshold,
+	}
+
+	mr := makeModifyResult(&rq)
+	mr.modified = true
+	mr.nodeType = gs_KV_NODE
+
+	return mr
+}
+
 func makeNodeList() *nodeList {
 	rv := nodeList{}
 	return &rv
+}
+
+func (g *Gouchstore) completeNewBtree(mr *modifyResult) (*nodePointer, error) {
+	err := g.flushMR(mr)
+	if err != nil {
+		return nil, err
+	}
+
+	targMr := makeModifyResult(mr.request)
+	targMr.modified = true
+	targMr.nodeType = gs_KP_NODE
+
+	err = g.mrMovePointers(mr, targMr)
+	if err != nil {
+		return nil, err
+	}
+
+	var retPtr *nodePointer
+	if targMr.count > 1 || targMr.pointers != targMr.pointersEnd {
+		retPtr, err = g.finishRoot(mr.request, targMr)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		retPtr = targMr.valuesEnd.pointer
+	}
+
+	return retPtr, nil
 }

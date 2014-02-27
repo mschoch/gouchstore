@@ -52,15 +52,15 @@ var expectedInterior = `Trying to read compressed chunk...
 Appears to be an interior node...
 Interior node found!
 Interior Node: [
-Key: 'brewery_belle_vue-gueuze' (627265776572795f62656c6c655f7675652d677565757a65) Pointer: 37046 Subtree Size: 681 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0b ca,
-Key: 'dick_s_brewing-pale_ale' (6469636b5f735f62726577696e672d70616c655f616c65) Pointer: 37727 Subtree Size: 663 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0b 75,
-Key: 'firehouse_grill_brewery-pale_ale' (66697265686f7573655f6772696c6c5f627265776572792d70616c655f616c65) Pointer: 38390 Subtree Size: 656 ReduceValue: 00 00 00 00 0b 00 00 00 00 00 00 00 00 00 0b f3,
-Key: 'lakefront_brewery-bock' (6c616b6566726f6e745f627265776572792d626f636b) Pointer: 39046 Subtree Size: 725 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0c f9,
-Key: 'montana_brewing-sandbagger_gold' (6d6f6e74616e615f62726577696e672d73616e646261676765725f676f6c64) Pointer: 39771 Subtree Size: 693 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0f 9c,
-Key: 'prescott_brewing_company' (70726573636f74745f62726577696e675f636f6d70616e79) Pointer: 40464 Subtree Size: 689 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0e d4,
-Key: 'san_marcos_brewery_grill-premium_golden_ale' (73616e5f6d6172636f735f627265776572795f6772696c6c2d7072656d69756d5f676f6c64656e5f616c65) Pointer: 41153 Subtree Size: 682 ReduceValue: 00 00 00 00 0a 00 00 00 00 00 00 00 00 00 0b cb,
-Key: 'the_narragansett_brewing_company-narragansett_lager' (7468655f6e6172726167616e736574745f62726577696e675f636f6d70616e792d6e6172726167616e736574745f6c61676572) Pointer: 41835 Subtree Size: 760 ReduceValue: 00 00 00 00 0b 00 00 00 00 00 00 00 00 00 10 07,
-Key: 'zea_rotisserie_and_brewery-clearview_light' (7a65615f726f74697373657269655f616e645f627265776572792d636c656172766965775f6c69676874) Pointer: 42595 Subtree Size: 619 ReduceValue: 00 00 00 00 09 00 00 00 00 00 00 00 00 00 0c 7d
+Key: 'brewery_belle_vue-gueuze' (62 72 65 77 65 72 79 5f 62 65 6c 6c 65 5f 76 75 65 2d 67 75 65 75 7a 65) Pointer: 37046 Subtree Size: 681 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0b ca,
+Key: 'dick_s_brewing-pale_ale' (64 69 63 6b 5f 73 5f 62 72 65 77 69 6e 67 2d 70 61 6c 65 5f 61 6c 65) Pointer: 37727 Subtree Size: 663 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0b 75,
+Key: 'firehouse_grill_brewery-pale_ale' (66 69 72 65 68 6f 75 73 65 5f 67 72 69 6c 6c 5f 62 72 65 77 65 72 79 2d 70 61 6c 65 5f 61 6c 65) Pointer: 38390 Subtree Size: 656 ReduceValue: 00 00 00 00 0b 00 00 00 00 00 00 00 00 00 0b f3,
+Key: 'lakefront_brewery-bock' (6c 61 6b 65 66 72 6f 6e 74 5f 62 72 65 77 65 72 79 2d 62 6f 63 6b) Pointer: 39046 Subtree Size: 725 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0c f9,
+Key: 'montana_brewing-sandbagger_gold' (6d 6f 6e 74 61 6e 61 5f 62 72 65 77 69 6e 67 2d 73 61 6e 64 62 61 67 67 65 72 5f 67 6f 6c 64) Pointer: 39771 Subtree Size: 693 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0f 9c,
+Key: 'prescott_brewing_company' (70 72 65 73 63 6f 74 74 5f 62 72 65 77 69 6e 67 5f 63 6f 6d 70 61 6e 79) Pointer: 40464 Subtree Size: 689 ReduceValue: 00 00 00 00 0c 00 00 00 00 00 00 00 00 00 0e d4,
+Key: 'san_marcos_brewery_grill-premium_golden_ale' (73 61 6e 5f 6d 61 72 63 6f 73 5f 62 72 65 77 65 72 79 5f 67 72 69 6c 6c 2d 70 72 65 6d 69 75 6d 5f 67 6f 6c 64 65 6e 5f 61 6c 65) Pointer: 41153 Subtree Size: 682 ReduceValue: 00 00 00 00 0a 00 00 00 00 00 00 00 00 00 0b cb,
+Key: 'the_narragansett_brewing_company-narragansett_lager' (74 68 65 5f 6e 61 72 72 61 67 61 6e 73 65 74 74 5f 62 72 65 77 69 6e 67 5f 63 6f 6d 70 61 6e 79 2d 6e 61 72 72 61 67 61 6e 73 65 74 74 5f 6c 61 67 65 72) Pointer: 41835 Subtree Size: 760 ReduceValue: 00 00 00 00 0b 00 00 00 00 00 00 00 00 00 10 07,
+Key: 'zea_rotisserie_and_brewery-clearview_light' (7a 65 61 5f 72 6f 74 69 73 73 65 72 69 65 5f 61 6e 64 5f 62 72 65 77 65 72 79 2d 63 6c 65 61 72 76 69 65 77 5f 6c 69 67 68 74) Pointer: 42595 Subtree Size: 619 ReduceValue: 00 00 00 00 09 00 00 00 00 00 00 00 00 00 0c 7d
 ]
 `
 
