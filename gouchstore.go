@@ -555,8 +555,8 @@ func (g *Gouchstore) LocalDocumentById(id string) (*LocalDocument, error) {
 	return resultDocPointer, nil
 }
 
-// SaveLocalDocument not public yet while under development
-func (g *Gouchstore) saveLocalDocument(localDoc *LocalDocument) error {
+// SaveLocalDocument stores local documents in the database
+func (g *Gouchstore) SaveLocalDocument(localDoc *LocalDocument) error {
 	ldUpdate := modifyAction{
 		key:   []byte(localDoc.ID),
 		value: localDoc.Body,

@@ -1038,7 +1038,7 @@ func TestLocalDocsFull(t *testing.T) {
 		Body:    []byte(`{"content": "not replicated"}`),
 		Deleted: false,
 	}
-	err = db.saveLocalDocument(localDoc)
+	err = db.SaveLocalDocument(localDoc)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1054,7 +1054,7 @@ func TestLocalDocsFull(t *testing.T) {
 
 	// now update it
 	localDoc.Body = []byte(`{"content": "has been updated"}`)
-	err = db.saveLocalDocument(localDoc)
+	err = db.SaveLocalDocument(localDoc)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1070,7 +1070,7 @@ func TestLocalDocsFull(t *testing.T) {
 
 	// now delete it
 	localDoc.Deleted = true
-	err = db.saveLocalDocument(localDoc)
+	err = db.SaveLocalDocument(localDoc)
 	if err != nil {
 		t.Error(err)
 	}
