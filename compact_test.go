@@ -55,6 +55,7 @@ func TestCompact(t *testing.T) {
 
 	// verify that the state matches our expectations
 	sanityCheckIdTree(t, compactedDb, 1, 0)
+	sanityCheckSeqTree(t, compactedDb, 1, 0)
 
 }
 
@@ -94,6 +95,24 @@ func TestCompactionLarger(t *testing.T) {
 			}
 		}
 	}
+
+	// create/update 10 local docs
+	for i := 0; i < 10; i++ {
+		// add a local doc, and update it 4 times
+		for j := 0; j < 5; j++ {
+			id := "_local/doc-" + strconv.Itoa(i)
+			content := "local-content-revision-" + strconv.Itoa(j)
+			doc := &LocalDocument{
+				ID:   id,
+				Body: []byte(`{"abc":` + content + `}`),
+			}
+			err := db.SaveLocalDocument(doc)
+			if err != nil {
+				t.Fatalf("error saving %d: %v", i, err)
+			}
+		}
+	}
+
 	// final commit
 	err = db.Commit()
 	if err != nil {
@@ -114,5 +133,5 @@ func TestCompactionLarger(t *testing.T) {
 
 	// verify that the state matches our expectations
 	sanityCheckIdTree(t, compactedDb, 1000, 0)
-
+	sanityCheckSeqTree(t, compactedDb, 1000, 0)
 }

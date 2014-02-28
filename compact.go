@@ -78,7 +78,35 @@ func (g *Gouchstore) Compact(targetFilename string) error {
 }
 
 func (g *Gouchstore) compactLocalDocsTree(target *Gouchstore, context *compactContext) error {
+	context.targetMr = newBtreeModifyResult(gouchstoreIdComparator, nil, nil, nil, gs_DB_CHUNK_THRESHOLD, gs_DB_CHUNK_THRESHOLD)
+
+	srcFold := lookupRequest{
+		gouchstore:      g,
+		compare:         gouchstoreIdComparator,
+		keys:            [][]byte{[]byte{}}, // lowest possible key
+		fold:            true,
+		inFold:          true,
+		callbackContext: context,
+		fetchCallback:   compactLocalDocsFetchCallback,
+		nodeCallback:    nil,
+	}
+
+	err := g.btreeLookup(&srcFold, g.header.localDocsRoot.pointer)
+	if err != nil {
+		return err
+	}
+	target.header.localDocsRoot, err = target.completeNewBtree(context.targetMr)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func compactLocalDocsFetchCallback(req *lookupRequest, key []byte, value []byte) error {
+	context := req.callbackContext.(*compactContext)
+
+	return context.targetDb.mrPushItem(key, value, context.targetMr)
 }
 
 func (g *Gouchstore) compactSeqTree(target *Gouchstore, context *compactContext) error {
@@ -106,7 +134,6 @@ func (g *Gouchstore) compactSeqTree(target *Gouchstore, context *compactContext)
 	}
 
 	return nil
-
 }
 
 func compactSeqFetchCallback(req *lookupRequest, key []byte, value []byte) error {
@@ -149,7 +176,10 @@ func compactSeqFetchCallback(req *lookupRequest, key []byte, value []byte) error
 }
 
 func outputSeqTreeItem(k, v []byte, context *compactContext) error {
-	context.targetDb.mrPushItem(k, v, context.targetMr)
+	err := context.targetDb.mrPushItem(k, v, context.targetMr)
+	if err != nil {
+		return err
+	}
 
 	docInfo := &DocumentInfo{}
 	decodeBySeqValue(docInfo, v)
@@ -158,7 +188,7 @@ func outputSeqTreeItem(k, v []byte, context *compactContext) error {
 	idK := []byte(docInfo.ID)
 	idV := docInfo.encodeById()
 
-	err := context.tw.AddItem(idK, idV)
+	err = context.tw.AddItem(idK, idV)
 	if err != nil {
 		return err
 	}

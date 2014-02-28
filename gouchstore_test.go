@@ -714,6 +714,7 @@ func TestCreateLargerFile(t *testing.T) {
 
 	// check the tree?
 	sanityCheckIdTree(t, db, 10000, 0)
+	sanityCheckSeqTree(t, db, 10000, 0)
 }
 
 func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
@@ -755,6 +756,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 
 	// check the tree
 	sanityCheckIdTree(t, db, 100, 0)
+	sanityCheckSeqTree(t, db, 100, 0)
 
 	// close
 	db.Close()
@@ -790,6 +792,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 
 		// check that we still have 100 docs
 		sanityCheckIdTree(t, db, 100, 0)
+		sanityCheckSeqTree(t, db, 100, 0)
 
 	}
 	// final commit
@@ -837,6 +840,39 @@ func sanityCheckIdTree(t *testing.T, db *Gouchstore, docCount, deletedCount uint
 	}
 	if rdeletedCount != deletedCount {
 		t.Errorf("Expected document to be %d got %d", deletedCount, rdeletedCount)
+	}
+}
+
+type sanityCheckSeqTreeContext struct {
+	docCount     uint64
+	deletedCount uint64
+}
+
+func sanityCheckSeqTree(t *testing.T, db *Gouchstore, docCount, deletedCount uint64) {
+	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
+
+		context := userContext.(*sanityCheckSeqTreeContext)
+
+		if documentInfo != nil {
+			if documentInfo.Deleted {
+				context.deletedCount++
+			} else {
+				context.docCount++
+			}
+		}
+	}
+
+	context := new(sanityCheckSeqTreeContext)
+	db.WalkSeqTree(0, 0, wtCallback, context)
+	rdocCount := decode_raw40(db.header.bySeqRoot.reducedValue)
+	if context.docCount != docCount {
+		t.Errorf("Expected reduced document count %d to match document count %d", rdocCount, context.docCount)
+	}
+	if context.deletedCount != deletedCount {
+		t.Errorf("Expected document to be %d got %d", deletedCount, context.deletedCount)
+	}
+	if rdocCount != docCount+deletedCount {
+		t.Errorf("Expected document to be %d got %d", docCount, rdocCount)
 	}
 }
 
@@ -928,8 +964,15 @@ func TestRealWorld(t *testing.T) {
 			}
 		}
 
+		// final commit
+		err = db.Commit()
+		if err != nil {
+			t.Fatalf("error committing end: %v", err)
+		}
+
 		// verify that the state matches our expectations
 		sanityCheckIdTree(t, db, docCount, deletedCount)
+		sanityCheckSeqTree(t, db, docCount, deletedCount)
 	}
 }
 
