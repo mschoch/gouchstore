@@ -1319,3 +1319,30 @@ func TestLocalDocsFull(t *testing.T) {
 	}
 
 }
+
+func BenchmarkAddDocument(b *testing.B) {
+	defer os.Remove("test.couch")
+	db, err := Open("test.couch", OPEN_CREATE)
+	if err != nil {
+		b.Error(err)
+	}
+	defer db.Close()
+	// set up complete, reset timer
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		docId := "doc-" + strconv.Itoa(i)
+		doc := &Document{
+			ID:   docId,
+			Body: []byte(`{"name":"marty","address":"123 Gouchbase Ln.","city":"Gouchville", "state":"GS"}`),
+		}
+		docInfo := &DocumentInfo{
+			ID:          docId,
+			Rev:         1,
+			ContentMeta: gs_DOC_IS_COMPRESSED,
+		}
+		err = db.SaveDocument(doc, docInfo)
+		if err != nil {
+			b.Error(err)
+		}
+	}
+}

@@ -199,6 +199,10 @@ func (g *Gouchstore) updateIndexes(seqs, seqvals, ids, idvals [][]byte) error {
 		fetcharg.actpos++
 	}
 
+	// we need to resize seqacts, as it was oversized intially
+	// which leaves around invalid actions
+	// FIXME evaluate for cleaner/faster way to do this
+	seqacts = append([]modifyAction{}, seqacts[:fetcharg.actpos]...)
 	sortedSeqActs := seqModifyActionList(seqacts)
 	sort.Sort(sortedSeqActs)
 
