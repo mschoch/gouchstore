@@ -952,7 +952,7 @@ func sanityCheckSeqTree(t *testing.T, db *Gouchstore, docs map[uint64]*Document,
 	for k, _ := range deletedDocs {
 		_, exists := context.deletedDocs[k]
 		if !exists {
-			t.Errorf("expected to find deleted seq %s, missing", k)
+			t.Errorf("expected to find deleted seq %x, missing", k)
 		}
 	}
 }
