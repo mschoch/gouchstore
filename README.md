@@ -2,7 +2,7 @@
 
 A native go library for working with [couchstore](https://github.com/couchbase/couchstore) files.
 
-NOTE: Save*() and Compact() methods are experimental.  Use at your own risk.
+NOTE: This library is relatively new, use at your own risk.
 
 ## Using
 
@@ -78,6 +78,10 @@ There are also a few utility programs available in the utils directory.
 		}
 		Document Body:
 		{"name":"Lion Brewery Ceylon Ltd.","city":"Colombo","state":"","code":"","country":"Sri Lanka","phone":"94-331535-42","website":"http://www.lionbeer.com/","type":"brewery","updated":"2010-07-22 20:00:20","description":"","address":["No-254, Colombo Road"],"geo":{"accuracy":"APPROXIMATE","lat":38.7548,"lon":-9.1883}}
+
+* gsdbcompact - compact a couchstore file
+
+		$  gsdbcompact original.couch compacted.couch
 
 ## Build Status
 
