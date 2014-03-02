@@ -9,4 +9,5 @@
 /utils/gsdblist/gsdblist
 /utils/gsdbget/gsdbget
 /utils/gsdbdebug/gsdbdebug
+/utils/gsdbcompact/gsdbcompact
 /coverage.out
