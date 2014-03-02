@@ -47,5 +47,8 @@ func main() {
 		fmt.Println(err)
 	}
 
-	db.DebugAddress(os.Stdout, offsetAddress, *printRawBytes, *readLargeChunk, *indexType)
+	err = db.DebugAddress(os.Stdout, offsetAddress, *printRawBytes, *readLargeChunk, *indexType)
+	if err != nil {
+		fmt.Fprintf(os.Stdout, "%v", err)
+	}
 }

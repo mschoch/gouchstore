@@ -9,21 +9,19 @@ import (
 // a key which is all printable characters is likely to be in the byId index
 var matchLikelyKey = regexp.MustCompile(`^[[:print:]]*$`)
 
-func (g *Gouchstore) DebugAddress(w io.Writer, offsetAddress int64, printRawBytes, readLargeChunk bool, indexType int) {
+func (g *Gouchstore) DebugAddress(w io.Writer, offsetAddress int64, printRawBytes, readLargeChunk bool, indexType int) error {
 	if offsetAddress%4096 == 0 {
 		fmt.Fprintln(w, "Address is on a 4096 byte boundary...")
 		first := make([]byte, 1)
 		_, err := g.readAt(first, offsetAddress)
 		if err != nil {
-			fmt.Fprintln(w, err)
-			return
+			return err
 		}
 		if first[0] == 0 {
 			fmt.Fprintln(w, "Appears to be a header...")
 			chunk, err := g.readChunkAt(offsetAddress, true)
 			if err != nil {
-				fmt.Fprintln(w, err)
-				return
+				return err
 			}
 			fmt.Fprintln(w, "Header Found!")
 			if printRawBytes {
@@ -31,8 +29,7 @@ func (g *Gouchstore) DebugAddress(w io.Writer, offsetAddress int64, printRawByte
 			}
 			h, err := newHeaderFromBytes(chunk)
 			if err != nil {
-				fmt.Fprintln(w, err)
-				return
+				return err
 			}
 			fmt.Fprint(w, h)
 
@@ -45,13 +42,11 @@ func (g *Gouchstore) DebugAddress(w io.Writer, offsetAddress int64, printRawByte
 		g.readAt(more, offsetAddress)
 		chunkSize := decode_raw31(more[0:4])
 		if chunkSize > 4096 && !readLargeChunk {
-			fmt.Fprintf(w, "Chunk appears to be too large (%d), check the address or use --readLargeChunk to proceed\n", chunkSize)
-			return
+			return fmt.Errorf("Chunk appears to be too large (%d), check the address or use --readLargeChunk to proceed\n", chunkSize)
 		}
 		chunk, err := g.readCompressedDataChunkAt(offsetAddress)
 		if err != nil {
-			fmt.Fprintln(w, err)
-			return
+			return err
 		}
 		if printRawBytes {
 			fmt.Fprintf(w, "raw chunk data: % x\n", chunk)
@@ -60,8 +55,7 @@ func (g *Gouchstore) DebugAddress(w io.Writer, offsetAddress int64, printRawByte
 			fmt.Fprintln(w, "Appears to be an interior node...")
 			node, err := decodeInteriorBtreeNode(chunk, indexType)
 			if err != nil {
-				fmt.Fprintln(w, err)
-				return
+				return err
 			}
 			fmt.Fprintln(w, "Interior node found!")
 			fmt.Fprintf(w, "%v", node)
@@ -81,8 +75,7 @@ func (g *Gouchstore) DebugAddress(w io.Writer, offsetAddress int64, printRawByte
 
 			node, err := decodeLeafBtreeNode(chunk, indexType)
 			if err != nil {
-				fmt.Fprintln(w, err)
-				return
+				return err
 			}
 			fmt.Fprintln(w, "Leaf node found!")
 			fmt.Fprintf(w, "%v", node)
@@ -90,4 +83,5 @@ func (g *Gouchstore) DebugAddress(w io.Writer, offsetAddress int64, printRawByte
 			fmt.Fprintln(w, "Assuming data chunk!")
 		}
 	}
+	return nil
 }
