@@ -49,6 +49,25 @@ func TestDebugHeader(t *testing.T) {
 	}
 }
 
+var expectedNotHeader = `Address is on a 4096 byte boundary...
+Does not appear to be a header ( 36)
+`
+
+func TestDebugNotAHeader(t *testing.T) {
+	db, err := Open(testFileName, OPEN_RDONLY)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	buffer := new(bytes.Buffer)
+	db.DebugAddress(buffer, 0x9000, true, false, -1)
+
+	if buffer.String() != expectedNotHeader {
+		t.Errorf("expcted '%s'\n got '%s'\n", expectedNotHeader, buffer.String())
+	}
+}
+
 var expectedInterior = `Trying to read compressed chunk...
 Appears to be an interior node...
 Interior node found!
@@ -179,5 +198,25 @@ func TestDebugSeqLeaf(t *testing.T) {
 
 	if buffer.String() != expectedSeqLeaf {
 		t.Errorf("expcted '%s'\n got '%s'\n", expectedSeqLeaf, buffer.String())
+	}
+}
+
+var expectedData = `Trying to read compressed chunk...
+raw chunk data: 7b 22 6e 61 6d 65 22 3a 22 53 2e 4f 2e 53 22 2c 22 61 62 76 22 3a 30 2e 30 2c 22 69 62 75 22 3a 30 2e 30 2c 22 73 72 6d 22 3a 30 2e 30 2c 22 75 70 63 22 3a 30 2c 22 74 79 70 65 22 3a 22 62 65 65 72 22 2c 22 62 72 65 77 65 72 79 5f 69 64 22 3a 22 61 62 69 74 61 5f 62 72 65 77 69 6e 67 5f 63 6f 6d 70 61 6e 79 22 2c 22 75 70 64 61 74 65 64 22 3a 22 32 30 31 31 2d 30 38 2d 31 35 20 31 31 3a 34 38 3a 32 30 22 2c 22 64 65 73 63 72 69 70 74 69 6f 6e 22 3a 22 53 61 76 65 20 4f 75 72 20 53 68 6f 72 65 73 20 28 53 2e 4f 2e 53 29 20 69 73 20 61 6e 20 75 6e 66 69 6c 74 65 72 65 64 20 77 65 69 7a 65 6e 20 70 69 6c 73 20 61 6e 64 20 68 61 73 20 61 20 62 72 69 6c 6c 69 61 6e 74 20 67 6f 6c 64 65 6e 20 63 6f 6c 6f 72 2e 20 41 20 43 68 61 72 69 74 61 62 6c 65 20 50 69 6c 73 6e 65 72 22 2c 22 73 74 79 6c 65 22 3a 22 47 65 72 6d 61 6e 2d 53 74 79 6c 65 20 50 69 6c 73 65 6e 65 72 22 2c 22 63 61 74 65 67 6f 72 79 22 3a 22 47 65 72 6d 61 6e 20 4c 61 67 65 72 22 7d
+Assuming data chunk!
+`
+
+func TestDebugData(t *testing.T) {
+	db, err := Open(testFileName, OPEN_RDONLY)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	buffer := new(bytes.Buffer)
+	db.DebugAddress(buffer, 0x1, true, false, -1)
+
+	if buffer.String() != expectedData {
+		t.Errorf("expcted '%s'\n got '%s'\n", expectedData, buffer.String())
 	}
 }
