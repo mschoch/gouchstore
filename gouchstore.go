@@ -205,7 +205,12 @@ func lookupCallback(req *lookupRequest, key []byte, value []byte) error {
 	}
 
 	if context.walkTreeCallback != nil {
-		context.walkTreeCallback(context.gouchstore, context.depth, &docinfo, nil, 0, nil, context.callbackContext)
+		if context.indexType == gs_INDEX_TYPE_LOCAL_DOCS {
+			// note we pass the non-initialized docinfo so we can at least detect that its a leaf
+			context.walkTreeCallback(context.gouchstore, context.depth, &docinfo, key, 0, value, context.callbackContext)
+		} else {
+			context.walkTreeCallback(context.gouchstore, context.depth, &docinfo, nil, 0, nil, context.callbackContext)
+		}
 	} else if context.documentInfoCallback != nil {
 		context.documentInfoCallback(context.gouchstore, &docinfo, context.callbackContext)
 	}
@@ -300,6 +305,10 @@ func (g *Gouchstore) AllDocuments(startId, endId string, cb DocumentInfoCallback
 
 func (g *Gouchstore) WalkIdTree(startId, endId string, wtcb WalkTreeCallback, userContext interface{}) error {
 
+	if g.header.byIdRoot == nil {
+		return nil
+	}
+
 	wtcb(g, 0, nil, nil, g.header.byIdRoot.subtreeSize, g.header.byIdRoot.reducedValue, userContext)
 
 	lc := lookupContext{
@@ -349,6 +358,10 @@ func (g *Gouchstore) ChangesSince(since uint64, till uint64, cb DocumentInfoCall
 }
 
 func (g *Gouchstore) WalkSeqTree(since uint64, till uint64, wtcb WalkTreeCallback, userContext interface{}) error {
+
+	if g.header.bySeqRoot == nil {
+		return nil
+	}
 
 	wtcb(g, 0, nil, nil, g.header.bySeqRoot.subtreeSize, g.header.bySeqRoot.reducedValue, userContext)
 
@@ -587,6 +600,43 @@ func (g *Gouchstore) SaveLocalDocument(localDoc *LocalDocument) error {
 	}
 	if nroot != g.header.localDocsRoot {
 		g.header.localDocsRoot = nroot
+	}
+
+	return nil
+}
+
+func (g *Gouchstore) WalkLocalDocsTree(startId, endId string, wtcb WalkTreeCallback, userContext interface{}) error {
+
+	if g.header.localDocsRoot == nil {
+		return nil
+	}
+
+	wtcb(g, 0, nil, nil, g.header.localDocsRoot.subtreeSize, g.header.localDocsRoot.reducedValue, userContext)
+
+	lc := lookupContext{
+		gouchstore:       g,
+		walkTreeCallback: wtcb,
+		callbackContext:  userContext,
+		indexType:        gs_INDEX_TYPE_LOCAL_DOCS,
+	}
+
+	keys := [][]byte{[]byte(startId)}
+	if endId != "" {
+		keys = append(keys, []byte(endId))
+	}
+
+	lr := lookupRequest{
+		compare:         gouchstoreIdComparator,
+		keys:            keys,
+		fetchCallback:   lookupCallback,
+		nodeCallback:    walkNodeCallback,
+		fold:            true,
+		callbackContext: &lc,
+	}
+
+	err := g.btreeLookup(&lr, g.header.localDocsRoot.pointer)
+	if err != nil {
+		return err
 	}
 
 	return nil

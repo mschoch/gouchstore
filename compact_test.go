@@ -81,6 +81,7 @@ func TestCompactionLarger(t *testing.T) {
 	defer db.Close()
 
 	docs := make(map[string]*Document)
+	localDocs := make(map[string]*LocalDocument)
 	deletedDocs := make(map[string]bool)
 	docsBySeq := make(map[uint64]*Document)
 	deletedDocsBySeq := make(map[uint64]bool)
@@ -136,6 +137,7 @@ func TestCompactionLarger(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error saving %d: %v", i, err)
 			}
+			localDocs[id] = doc
 		}
 	}
 
@@ -160,4 +162,5 @@ func TestCompactionLarger(t *testing.T) {
 	// verify that the state matches our expectations
 	sanityCheckIdTree(t, compactedDb, docs, deletedDocs)
 	sanityCheckSeqTree(t, compactedDb, docsBySeq, deletedDocsBySeq)
+	sanityCheckLocalDocsTree(t, compactedDb, localDocs)
 }
