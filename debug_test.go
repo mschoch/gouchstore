@@ -113,3 +113,69 @@ func TestDebugLeaf(t *testing.T) {
 		t.Errorf("expcted '%s'\n got '%s'\n", expectedLeaf, buffer.String())
 	}
 }
+
+var expectedSeqInterior = `Trying to read compressed chunk...
+Appears to be an interior node...
+Interior node found!
+Interior Node: [
+Key: (00 00 00 00 00 0c) Pointer: 3019 Subtree Size: 719 ReduceValue: 00 00 00 00 0c,
+Key: (00 00 00 00 00 18) Pointer: 6672 Subtree Size: 686 ReduceValue: 00 00 00 00 0c,
+Key: (00 00 00 00 00 23) Pointer: 10418 Subtree Size: 684 ReduceValue: 00 00 00 00 0b,
+Key: (00 00 00 00 00 2e) Pointer: 14212 Subtree Size: 712 ReduceValue: 00 00 00 00 0b,
+Key: (00 00 00 00 00 3a) Pointer: 18974 Subtree Size: 715 ReduceValue: 00 00 00 00 0c,
+Key: (00 00 00 00 00 46) Pointer: 23326 Subtree Size: 735 ReduceValue: 00 00 00 00 0c,
+Key: (00 00 00 00 00 50) Pointer: 27234 Subtree Size: 684 ReduceValue: 00 00 00 00 0a,
+Key: (00 00 00 00 00 5a) Pointer: 31112 Subtree Size: 740 ReduceValue: 00 00 00 00 0a,
+Key: (00 00 00 00 00 65) Pointer: 36126 Subtree Size: 750 ReduceValue: 00 00 00 00 0b
+]
+`
+
+func TestDebugSeqInterior(t *testing.T) {
+	db, err := Open(testFileName, OPEN_RDONLY)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	buffer := new(bytes.Buffer)
+	db.DebugAddress(buffer, 0x900c, false, false, -1)
+
+	if buffer.String() != expectedSeqInterior {
+		t.Errorf("expcted '%s'\n got '%s'\n", expectedSeqInterior, buffer.String())
+	}
+}
+
+var expectedSeqLeaf = `Trying to read compressed chunk...
+Appears to be a leaf node...
+Guessing this node is in the bySeq index
+Leaf node found!
+Leaf Node: [
+ID: 'abita_brewing_company-s_o_s' Seq: 1 Rev: 1 Deleted: false Size: 314 BodyPosition: 1 (0x1),
+ID: 'ali_i_brewing-kona_coffee_stout' Seq: 2 Rev: 1 Deleted: false Size: 219 BodyPosition: 315 (0x13b),
+ID: 'amherst_brewing_company-bankers_gold' Seq: 3 Rev: 1 Deleted: false Size: 343 BodyPosition: 534 (0x216),
+ID: 'aspen_brewing_company' Seq: 4 Rev: 1 Deleted: false Size: 253 BodyPosition: 877 (0x36d),
+ID: 'belhaven_brewery-twisted_thistle_india_pale_ale' Seq: 5 Rev: 1 Deleted: false Size: 235 BodyPosition: 1130 (0x46a),
+ID: 'bell_s_brewery_inc-two_hearted_ale' Seq: 6 Rev: 1 Deleted: false Size: 403 BodyPosition: 1365 (0x555),
+ID: 'bellows_brew_crew-steam_lager' Seq: 7 Rev: 1 Deleted: false Size: 155 BodyPosition: 1768 (0x6e8),
+ID: 'big_ridge_brewing-lager' Seq: 8 Rev: 1 Deleted: false Size: 205 BodyPosition: 1923 (0x783),
+ID: 'brasserie_brouwerij_cantillon-iris_1996' Seq: 9 Rev: 1 Deleted: false Size: 243 BodyPosition: 2128 (0x850),
+ID: 'brauerei_wieselburg' Seq: 10 Rev: 1 Deleted: false Size: 286 BodyPosition: 2371 (0x943),
+ID: 'brauhaus_onuma-kolsch' Seq: 11 Rev: 1 Deleted: false Size: 149 BodyPosition: 2657 (0xa61),
+ID: 'brewery_belle_vue-gueuze' Seq: 12 Rev: 1 Deleted: false Size: 213 BodyPosition: 2806 (0xaf6)
+]
+`
+
+func TestDebugSeqLeaf(t *testing.T) {
+	db, err := Open(testFileName, OPEN_RDONLY)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	buffer := new(bytes.Buffer)
+	db.DebugAddress(buffer, 3019, false, false, -1)
+
+	if buffer.String() != expectedSeqLeaf {
+		t.Errorf("expcted '%s'\n got '%s'\n", expectedSeqLeaf, buffer.String())
+	}
+}
