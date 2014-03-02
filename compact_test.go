@@ -16,6 +16,8 @@ func TestCompact(t *testing.T) {
 
 	docs := make(map[string]*Document)
 	deletedDocs := make(map[string]bool)
+	docsBySeq := make(map[uint64]*Document)
+	deletedDocsBySeq := make(map[uint64]bool)
 
 	doc := &Document{
 		ID:   "newdoc",
@@ -32,18 +34,25 @@ func TestCompact(t *testing.T) {
 		t.Error(err)
 	}
 	docs[doc.ID] = doc
+	docsBySeq[docInfo.Seq] = doc
 
+	oldSeq := docInfo.Seq
 	doc.Body = []byte(`{"abc":2}`)
 	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
+	delete(docsBySeq, oldSeq)
+	docsBySeq[docInfo.Seq] = doc
 
+	oldSeq = docInfo.Seq
 	doc.Body = []byte(`{"abc":3}`)
 	err = db.SaveDocument(doc, docInfo)
 	if err != nil {
 		t.Error(err)
 	}
+	delete(docsBySeq, oldSeq)
+	docsBySeq[docInfo.Seq] = doc
 
 	err = db.Compact("compacted.couch")
 	if err != nil {
@@ -59,7 +68,7 @@ func TestCompact(t *testing.T) {
 
 	// verify that the state matches our expectations
 	sanityCheckIdTree(t, compactedDb, docs, deletedDocs)
-	sanityCheckSeqTree(t, compactedDb, 1, 0)
+	sanityCheckSeqTree(t, compactedDb, docsBySeq, deletedDocsBySeq)
 
 }
 
@@ -73,10 +82,13 @@ func TestCompactionLarger(t *testing.T) {
 
 	docs := make(map[string]*Document)
 	deletedDocs := make(map[string]bool)
+	docsBySeq := make(map[uint64]*Document)
+	deletedDocsBySeq := make(map[uint64]bool)
 
 	// create/update 1000 docs
 	for i := 0; i < 1000; i++ {
 		// add a doc, and update it 4 times
+		oldSeq := uint64(0)
 		for j := 0; j < 5; j++ {
 			id := "doc-" + strconv.Itoa(i)
 			content := "content-revision-" + strconv.Itoa(j)
@@ -93,7 +105,13 @@ func TestCompactionLarger(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error saving %d: %v", i, err)
 			}
+			newSeq := uint64(docInfo.Seq)
 			docs[doc.ID] = doc
+			docsBySeq[docInfo.Seq] = doc
+			if oldSeq != 0 {
+				delete(docsBySeq, oldSeq)
+			}
+			oldSeq = newSeq
 		}
 		// commit every 1000
 		if i%10 == 0 {
@@ -141,5 +159,5 @@ func TestCompactionLarger(t *testing.T) {
 
 	// verify that the state matches our expectations
 	sanityCheckIdTree(t, compactedDb, docs, deletedDocs)
-	sanityCheckSeqTree(t, compactedDb, 1000, 0)
+	sanityCheckSeqTree(t, compactedDb, docsBySeq, deletedDocsBySeq)
 }

@@ -685,6 +685,8 @@ func TestCreateLargerFile(t *testing.T) {
 
 	docs := make(map[string]*Document)
 	deletedDocs := make(map[string]bool)
+	docsBySeq := make(map[uint64]*Document)
+	deletedDocsBySeq := make(map[uint64]bool)
 
 	for i := 0; i < 10000; i++ {
 		id := "doc-" + strconv.Itoa(i)
@@ -702,6 +704,7 @@ func TestCreateLargerFile(t *testing.T) {
 			t.Fatalf("error saving %d: %v", i, err)
 		}
 		docs[doc.ID] = doc
+		docsBySeq[docInfo.Seq] = doc
 		// commit every 1000
 		if i%1000 == 0 {
 			err := db.Commit()
@@ -718,7 +721,7 @@ func TestCreateLargerFile(t *testing.T) {
 
 	// check the tree?
 	sanityCheckIdTree(t, db, docs, deletedDocs)
-	sanityCheckSeqTree(t, db, 10000, 0)
+	sanityCheckSeqTree(t, db, docsBySeq, deletedDocsBySeq)
 }
 
 func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
@@ -731,6 +734,9 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 
 	docs := make(map[string]*Document)
 	deletedDocs := make(map[string]bool)
+	oldSeqs := make(map[string]uint64)
+	docsBySeq := make(map[uint64]*Document)
+	deletedDocsBySeq := make(map[uint64]bool)
 
 	for i := 0; i < 100; i++ {
 		id := "doc-" + strconv.Itoa(i)
@@ -748,6 +754,8 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 			t.Fatalf("error saving %d: %v", i, err)
 		}
 		docs[doc.ID] = doc
+		docsBySeq[docInfo.Seq] = doc
+		oldSeqs[doc.ID] = docInfo.Seq
 		// commit every 1000
 		if i%1000 == 0 {
 			err := db.Commit()
@@ -764,7 +772,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 
 	// check the tree
 	sanityCheckIdTree(t, db, docs, deletedDocs)
-	sanityCheckSeqTree(t, db, 100, 0)
+	sanityCheckSeqTree(t, db, docsBySeq, deletedDocsBySeq)
 
 	// close
 	db.Close()
@@ -792,6 +800,12 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 			t.Fatalf("error saving %d: %v", i, err)
 		}
 
+		docsBySeq[docInfo.Seq] = doc
+		oldSeq, existedBefore := oldSeqs[doc.ID]
+		if existedBefore {
+			delete(docsBySeq, oldSeq)
+		}
+
 		// commit every operation this pass
 		err = db.Commit()
 		if err != nil {
@@ -800,7 +814,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 
 		// check that we still have 100 docs
 		sanityCheckIdTree(t, db, docs, deletedDocs)
-		sanityCheckSeqTree(t, db, 100, 0)
+		sanityCheckSeqTree(t, db, docsBySeq, deletedDocsBySeq)
 
 	}
 	// final commit
@@ -883,9 +897,18 @@ func sanityCheckIdTree(t *testing.T, db *Gouchstore, docs map[string]*Document, 
 type sanityCheckSeqTreeContext struct {
 	docCount     uint64
 	deletedCount uint64
+	docs         map[uint64]bool
+	deletedDocs  map[uint64]bool
 }
 
-func sanityCheckSeqTree(t *testing.T, db *Gouchstore, docCount, deletedCount uint64) {
+func newSanityCheckSeqTreeContext() *sanityCheckSeqTreeContext {
+	return &sanityCheckSeqTreeContext{
+		docs:        make(map[uint64]bool, 0),
+		deletedDocs: make(map[uint64]bool, 0),
+	}
+}
+
+func sanityCheckSeqTree(t *testing.T, db *Gouchstore, docs map[uint64]*Document, deletedDocs map[uint64]bool) {
 	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
 
 		context := userContext.(*sanityCheckSeqTreeContext)
@@ -893,23 +916,44 @@ func sanityCheckSeqTree(t *testing.T, db *Gouchstore, docCount, deletedCount uin
 		if documentInfo != nil {
 			if documentInfo.Deleted {
 				context.deletedCount++
+				context.deletedDocs[documentInfo.Seq] = true
 			} else {
 				context.docCount++
+				context.docs[documentInfo.Seq] = true
 			}
 		}
 	}
 
-	context := new(sanityCheckSeqTreeContext)
+	context := newSanityCheckSeqTreeContext()
+	docCount := uint64(len(docs))
+	deletedCount := uint64(len(deletedDocs))
 	db.WalkSeqTree(0, 0, wtCallback, context)
 	rdocCount := decode_raw40(db.header.bySeqRoot.reducedValue)
 	if context.docCount != docCount {
-		t.Errorf("Expected reduced document count %d to match document count %d", rdocCount, context.docCount)
+		t.Logf("docs: %v", docs)
+		t.Errorf("Expected document count %d to match document count %d", docCount, context.docCount)
 	}
 	if context.deletedCount != deletedCount {
-		t.Errorf("Expected document to be %d got %d", deletedCount, context.deletedCount)
+		t.Errorf("Expected deleted document count to be %d got %d", deletedCount, context.deletedCount)
 	}
 	if rdocCount != docCount+deletedCount {
-		t.Errorf("Expected document to be %d got %d", docCount, rdocCount)
+		t.Errorf("Expected reduced document to be %d got %d", docCount, rdocCount)
+	}
+
+	// ensure we have all the seqs expected
+	for k, _ := range docs {
+		_, exists := context.docs[k]
+		if !exists {
+			t.Errorf("expected to find seq %x, missing", k)
+		}
+	}
+
+	// ensure we have all the deleted seqs expected
+	for k, _ := range deletedDocs {
+		_, exists := context.deletedDocs[k]
+		if !exists {
+			t.Errorf("expected to find deleted seq %s, missing", k)
+		}
 	}
 }
 
@@ -930,6 +974,8 @@ func TestRealWorld(t *testing.T) {
 	deletedDocs := make(map[string]bool)
 	docInfos := make(map[string]*DocumentInfo)
 	docKeys := make([]string, 0)
+	docsBySeq := make(map[uint64]*Document)
+	deletedDocsBySeq := make(map[uint64]bool)
 	// iterate through this many operations
 	for i := 0; i < 2000; i++ {
 		operation := rand.Intn(10)
@@ -951,6 +997,7 @@ func TestRealWorld(t *testing.T) {
 				t.Error(err)
 			}
 			docs[docId] = doc
+			docsBySeq[docInfo.Seq] = doc
 			docInfos[docId] = docInfo
 			docKeys = append(docKeys, docId)
 			docCount++
@@ -958,6 +1005,10 @@ func TestRealWorld(t *testing.T) {
 			// update doc
 			docIdIndexToUpdate := rand.Intn(len(docKeys))
 			docIdToUpdate := docKeys[docIdIndexToUpdate]
+
+			// get the old seq
+			oldSeq := docInfos[docIdToUpdate].Seq
+
 			// bump the rev of this doc
 			docInfos[docIdToUpdate].Rev++
 			// now udpate it
@@ -965,21 +1016,28 @@ func TestRealWorld(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			delete(docsBySeq, oldSeq)
+			docsBySeq[docInfos[docIdToUpdate].Seq] = docs[docIdToUpdate]
 		} else {
 			// delete doc
 			if len(docKeys) > 0 {
 				docIdIndexToDelete := rand.Intn(len(docKeys))
 				docIdToDelete := docKeys[docIdIndexToDelete]
+				// get the old seq
+				oldSeq := docInfos[docIdToDelete].Seq
 				err = db.SaveDocument(nil, docInfos[docIdToDelete])
 				if err != nil {
 					t.Error(err)
 				}
+				oldInfo := docInfos[docIdToDelete]
 				docKeys = append(docKeys[:docIdIndexToDelete], docKeys[docIdIndexToDelete+1:]...)
 				delete(docs, docIdToDelete)
 				deletedDocs[docIdToDelete] = true
 				delete(docInfos, docIdToDelete)
 				docCount--
 				deletedCount++
+				delete(docsBySeq, oldSeq)
+				deletedDocsBySeq[oldInfo.Seq] = true
 			}
 		}
 
@@ -1011,7 +1069,7 @@ func TestRealWorld(t *testing.T) {
 
 		// verify that the state matches our expectations
 		sanityCheckIdTree(t, db, docs, deletedDocs)
-		sanityCheckSeqTree(t, db, docCount, deletedCount)
+		sanityCheckSeqTree(t, db, docsBySeq, deletedDocsBySeq)
 	}
 }
 
