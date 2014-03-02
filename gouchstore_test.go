@@ -683,6 +683,9 @@ func TestCreateLargerFile(t *testing.T) {
 	}
 	defer db.Close()
 
+	docs := make(map[string]*Document)
+	deletedDocs := make(map[string]bool)
+
 	for i := 0; i < 10000; i++ {
 		id := "doc-" + strconv.Itoa(i)
 		doc := &Document{
@@ -698,6 +701,7 @@ func TestCreateLargerFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error saving %d: %v", i, err)
 		}
+		docs[doc.ID] = doc
 		// commit every 1000
 		if i%1000 == 0 {
 			err := db.Commit()
@@ -713,7 +717,7 @@ func TestCreateLargerFile(t *testing.T) {
 	}
 
 	// check the tree?
-	sanityCheckIdTree(t, db, 10000, 0)
+	sanityCheckIdTree(t, db, docs, deletedDocs)
 	sanityCheckSeqTree(t, db, 10000, 0)
 }
 
@@ -724,6 +728,9 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 		t.Error(err)
 	}
 	defer db.Close()
+
+	docs := make(map[string]*Document)
+	deletedDocs := make(map[string]bool)
 
 	for i := 0; i < 100; i++ {
 		id := "doc-" + strconv.Itoa(i)
@@ -740,6 +747,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error saving %d: %v", i, err)
 		}
+		docs[doc.ID] = doc
 		// commit every 1000
 		if i%1000 == 0 {
 			err := db.Commit()
@@ -755,7 +763,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 	}
 
 	// check the tree
-	sanityCheckIdTree(t, db, 100, 0)
+	sanityCheckIdTree(t, db, docs, deletedDocs)
 	sanityCheckSeqTree(t, db, 100, 0)
 
 	// close
@@ -791,7 +799,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 		}
 
 		// check that we still have 100 docs
-		sanityCheckIdTree(t, db, 100, 0)
+		sanityCheckIdTree(t, db, docs, deletedDocs)
 		sanityCheckSeqTree(t, db, 100, 0)
 
 	}
@@ -806,9 +814,18 @@ type sanityCheckIdTreeContext struct {
 	totalSize    uint64
 	docCount     uint64
 	deletedCount uint64
+	docs         map[string]bool
+	deletedDocs  map[string]bool
 }
 
-func sanityCheckIdTree(t *testing.T, db *Gouchstore, docCount, deletedCount uint64) {
+func newSanityCheckIdTreeContext() *sanityCheckIdTreeContext {
+	return &sanityCheckIdTreeContext{
+		docs:        make(map[string]bool, 0),
+		deletedDocs: make(map[string]bool, 0),
+	}
+}
+
+func sanityCheckIdTree(t *testing.T, db *Gouchstore, docs map[string]*Document, deletedDocs map[string]bool) {
 	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
 
 		context := userContext.(*sanityCheckIdTreeContext)
@@ -817,13 +834,17 @@ func sanityCheckIdTree(t *testing.T, db *Gouchstore, docCount, deletedCount uint
 			context.totalSize += documentInfo.Size
 			if documentInfo.Deleted {
 				context.deletedCount++
+				context.deletedDocs[documentInfo.ID] = true
 			} else {
 				context.docCount++
+				context.docs[documentInfo.ID] = true
 			}
 		}
 	}
 
-	context := new(sanityCheckIdTreeContext)
+	context := newSanityCheckIdTreeContext()
+	docCount := uint64(len(docs))
+	deletedCount := uint64(len(deletedDocs))
 	db.WalkIdTree("", "", wtCallback, context)
 	rdocCount, rdeletedCount, rtotalSize := decodeByIdReduce(db.header.byIdRoot.reducedValue)
 	if context.docCount != rdocCount {
@@ -840,6 +861,22 @@ func sanityCheckIdTree(t *testing.T, db *Gouchstore, docCount, deletedCount uint
 	}
 	if rdeletedCount != deletedCount {
 		t.Errorf("Expected document to be %d got %d", deletedCount, rdeletedCount)
+	}
+
+	// ensure we have all the keys expected
+	for k, _ := range docs {
+		_, exists := context.docs[k]
+		if !exists {
+			t.Errorf("expected to find key %s, missing", k)
+		}
+	}
+
+	// ensure we have all the deleted keys expected
+	for k, _ := range deletedDocs {
+		_, exists := context.deletedDocs[k]
+		if !exists {
+			t.Errorf("expected to find deleted key %s, missing", k)
+		}
 	}
 }
 
@@ -890,6 +927,7 @@ func TestRealWorld(t *testing.T) {
 	var deletedCount uint64 = 0
 	nextDocId := 0
 	docs := make(map[string]*Document)
+	deletedDocs := make(map[string]bool)
 	docInfos := make(map[string]*DocumentInfo)
 	docKeys := make([]string, 0)
 	// iterate through this many operations
@@ -938,6 +976,7 @@ func TestRealWorld(t *testing.T) {
 				}
 				docKeys = append(docKeys[:docIdIndexToDelete], docKeys[docIdIndexToDelete+1:]...)
 				delete(docs, docIdToDelete)
+				deletedDocs[docIdToDelete] = true
 				delete(docInfos, docIdToDelete)
 				docCount--
 				deletedCount++
@@ -971,7 +1010,7 @@ func TestRealWorld(t *testing.T) {
 		}
 
 		// verify that the state matches our expectations
-		sanityCheckIdTree(t, db, docCount, deletedCount)
+		sanityCheckIdTree(t, db, docs, deletedDocs)
 		sanityCheckSeqTree(t, db, docCount, deletedCount)
 	}
 }

@@ -14,8 +14,11 @@ func TestCompact(t *testing.T) {
 	}
 	defer db.Close()
 
+	docs := make(map[string]*Document)
+	deletedDocs := make(map[string]bool)
+
 	doc := &Document{
-		ID:   "doc1",
+		ID:   "newdoc",
 		Body: []byte(`{"abc":1}`),
 	}
 	docInfo := &DocumentInfo{
@@ -28,6 +31,7 @@ func TestCompact(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	docs[doc.ID] = doc
 
 	doc.Body = []byte(`{"abc":2}`)
 	err = db.SaveDocument(doc, docInfo)
@@ -54,7 +58,7 @@ func TestCompact(t *testing.T) {
 	}
 
 	// verify that the state matches our expectations
-	sanityCheckIdTree(t, compactedDb, 1, 0)
+	sanityCheckIdTree(t, compactedDb, docs, deletedDocs)
 	sanityCheckSeqTree(t, compactedDb, 1, 0)
 
 }
@@ -66,6 +70,9 @@ func TestCompactionLarger(t *testing.T) {
 		t.Error(err)
 	}
 	defer db.Close()
+
+	docs := make(map[string]*Document)
+	deletedDocs := make(map[string]bool)
 
 	// create/update 1000 docs
 	for i := 0; i < 1000; i++ {
@@ -86,6 +93,7 @@ func TestCompactionLarger(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error saving %d: %v", i, err)
 			}
+			docs[doc.ID] = doc
 		}
 		// commit every 1000
 		if i%10 == 0 {
@@ -132,6 +140,6 @@ func TestCompactionLarger(t *testing.T) {
 	}
 
 	// verify that the state matches our expectations
-	sanityCheckIdTree(t, compactedDb, 1000, 0)
+	sanityCheckIdTree(t, compactedDb, docs, deletedDocs)
 	sanityCheckSeqTree(t, compactedDb, 1000, 0)
 }
