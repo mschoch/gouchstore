@@ -206,9 +206,10 @@ type testAllDocumentsContext struct {
 	count int
 }
 
-func testAllDocumentsCallback(g *Gouchstore, docInfo *DocumentInfo, userContext interface{}) {
+func testAllDocumentsCallback(g *Gouchstore, docInfo *DocumentInfo, userContext interface{}) error {
 	context := userContext.(*testAllDocumentsContext)
 	context.count++
+	return nil
 }
 
 func TestGouchstoreAllDocuments(t *testing.T) {
@@ -840,7 +841,7 @@ func newSanityCheckIdTreeContext() *sanityCheckIdTreeContext {
 }
 
 func sanityCheckIdTree(t *testing.T, db *Gouchstore, docs map[string]*Document, deletedDocs map[string]bool) {
-	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
+	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) error {
 
 		context := userContext.(*sanityCheckIdTreeContext)
 
@@ -854,6 +855,7 @@ func sanityCheckIdTree(t *testing.T, db *Gouchstore, docs map[string]*Document, 
 				context.docs[documentInfo.ID] = true
 			}
 		}
+		return nil
 	}
 
 	context := newSanityCheckIdTreeContext()
@@ -911,7 +913,7 @@ func newSanityCheckSeqTreeContext() *sanityCheckSeqTreeContext {
 }
 
 func sanityCheckSeqTree(t *testing.T, db *Gouchstore, docs map[uint64]*Document, deletedDocs map[uint64]bool) {
-	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
+	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) error {
 
 		context := userContext.(*sanityCheckSeqTreeContext)
 
@@ -924,6 +926,8 @@ func sanityCheckSeqTree(t *testing.T, db *Gouchstore, docs map[uint64]*Document,
 				context.docs[documentInfo.Seq] = true
 			}
 		}
+
+		return nil
 	}
 
 	context := newSanityCheckSeqTreeContext()
@@ -972,7 +976,7 @@ func newSanityCheckLocalDocsTreeContext() *sanityCheckLocalDocsTreeContext {
 }
 
 func sanityCheckLocalDocsTree(t *testing.T, db *Gouchstore, docs map[string]*LocalDocument) {
-	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
+	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) error {
 
 		context := userContext.(*sanityCheckLocalDocsTreeContext)
 
@@ -980,6 +984,8 @@ func sanityCheckLocalDocsTree(t *testing.T, db *Gouchstore, docs map[string]*Loc
 			context.docCount++
 			context.docs[string(key)] = true
 		}
+
+		return nil
 	}
 
 	context := newSanityCheckLocalDocsTreeContext()

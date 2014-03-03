@@ -11,6 +11,7 @@ package gouchstore
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sort"
 )
@@ -19,6 +20,13 @@ import (
 type Document struct {
 	ID   string
 	Body []byte
+}
+
+func NewDocument(id string, value []byte) *Document {
+	return &Document{
+		ID:   id,
+		Body: value,
+	}
 }
 
 // LocalDocument represents a local (non-replicated) document.
@@ -38,6 +46,17 @@ type DocumentInfo struct {
 	Deleted      bool   `json:"deleted"`      // is the revision deleted?
 	Size         uint64 `json:"size"`         // size of document data in bytes
 	bodyPosition uint64 `json:"bodyPosition"` // byte offset of document body in file
+}
+
+func (di *DocumentInfo) WriteIDTo(w io.Writer) (int, error) {
+	return w.Write([]byte(di.ID))
+}
+
+func NewDocumentInfo(id string) *DocumentInfo {
+	return &DocumentInfo{
+		ID:          id,
+		ContentMeta: gs_DOC_IS_COMPRESSED,
+	}
 }
 
 // Compressed returns whether or not this document has been compressed for storage.
@@ -66,10 +85,10 @@ type DatabaseInfo struct {
 // DocumentInfoCallback is a function definition which is used for document iteration.
 // For example, when iterating all documents with the AllDocuments() method,
 // the provided callback will be invoked for each document in the database.
-type DocumentInfoCallback func(gouchstore *Gouchstore, documentInfo *DocumentInfo, userContext interface{})
+type DocumentInfoCallback func(gouchstore *Gouchstore, documentInfo *DocumentInfo, userContext interface{}) error
 
 // WalkTreeCallback is a function definition which is used for tree walks.
-type WalkTreeCallback func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{})
+type WalkTreeCallback func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) error
 
 // Gouchstore gives access to a couchstore database file.
 type Gouchstore struct {
@@ -130,9 +149,10 @@ func Open(filename string, options int) (*Gouchstore, error) {
 	return &rv, nil
 }
 
-func gouchstoreFetchCallback(g *Gouchstore, docInfo *DocumentInfo, userContext interface{}) {
+func gouchstoreFetchCallback(g *Gouchstore, docInfo *DocumentInfo, userContext interface{}) error {
 	resultList := userContext.(*([]*DocumentInfo))
 	*resultList = append(*resultList, docInfo)
+	return nil
 }
 
 // DocumentInfoById returns DocumentInfo for a single document with the specified ID.
@@ -207,12 +227,12 @@ func lookupCallback(req *lookupRequest, key []byte, value []byte) error {
 	if context.walkTreeCallback != nil {
 		if context.indexType == gs_INDEX_TYPE_LOCAL_DOCS {
 			// note we pass the non-initialized docinfo so we can at least detect that its a leaf
-			context.walkTreeCallback(context.gouchstore, context.depth, &docinfo, key, 0, value, context.callbackContext)
+			return context.walkTreeCallback(context.gouchstore, context.depth, &docinfo, key, 0, value, context.callbackContext)
 		} else {
-			context.walkTreeCallback(context.gouchstore, context.depth, &docinfo, nil, 0, nil, context.callbackContext)
+			return context.walkTreeCallback(context.gouchstore, context.depth, &docinfo, nil, 0, nil, context.callbackContext)
 		}
 	} else if context.documentInfoCallback != nil {
-		context.documentInfoCallback(context.gouchstore, &docinfo, context.callbackContext)
+		return context.documentInfoCallback(context.gouchstore, &docinfo, context.callbackContext)
 	}
 
 	return nil
@@ -226,9 +246,9 @@ func walkNodeCallback(req *lookupRequest, key []byte, value []byte) error {
 	} else {
 		valueNodePointer := decodeNodePointer(value)
 		valueNodePointer.key = key
-		context.walkTreeCallback(context.gouchstore, context.depth, nil, key, valueNodePointer.subtreeSize, valueNodePointer.reducedValue, context.callbackContext)
+		err := context.walkTreeCallback(context.gouchstore, context.depth, nil, key, valueNodePointer.subtreeSize, valueNodePointer.reducedValue, context.callbackContext)
 		context.depth++
-		return nil
+		return err
 	}
 }
 
@@ -295,10 +315,11 @@ func (g *Gouchstore) DocumentInfosBySeqs(sequences []uint64) ([]*DocumentInfo, e
 //
 // If endId is the empty string, the iteration will continue to the last document.
 func (g *Gouchstore) AllDocuments(startId, endId string, cb DocumentInfoCallback, userContext interface{}) error {
-	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
+	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) error {
 		if documentInfo != nil {
-			cb(gouchstore, documentInfo, userContext)
+			return cb(gouchstore, documentInfo, userContext)
 		}
+		return nil
 	}
 	return g.WalkIdTree(startId, endId, wtCallback, userContext)
 }
@@ -349,10 +370,11 @@ func (g *Gouchstore) WalkIdTree(startId, endId string, wtcb WalkTreeCallback, us
 //
 // If endId is 0, the iteration will continue to the last document.
 func (g *Gouchstore) ChangesSince(since uint64, till uint64, cb DocumentInfoCallback, userContext interface{}) error {
-	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) {
+	wtCallback := func(gouchstore *Gouchstore, depth int, documentInfo *DocumentInfo, key []byte, subTreeSize uint64, reducedValue []byte, userContext interface{}) error {
 		if documentInfo != nil {
-			cb(gouchstore, documentInfo, userContext)
+			return cb(gouchstore, documentInfo, userContext)
 		}
+		return nil
 	}
 	return g.WalkSeqTree(since, till, wtCallback, userContext)
 }
