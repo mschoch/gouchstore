@@ -62,6 +62,7 @@ func (g *Gouchstore) readCompressedDataChunkAt(pos int64) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	decompressedChunk, err := snappy.Decode(nil, chunk)
 	if err != nil {
 		return nil, err
@@ -117,7 +118,7 @@ func (g *Gouchstore) writeChunk(buf []byte, header bool) (int64, int64, error) {
 	g.pos += written
 	endpos += written
 
-	return startPos, endpos - pos, nil
+	return startPos, endpos - startPos, nil
 }
 
 func (g *Gouchstore) writeCompressedChunk(buf []byte) (int64, int64, error) {
