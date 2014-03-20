@@ -9,10 +9,6 @@
 
 package gouchstore
 
-import (
-	"os"
-)
-
 const gs_BLOCK_SIZE int64 = 4096
 const gs_BLOCK_MARKER_SIZE int64 = 1
 
@@ -22,22 +18,13 @@ const (
 	gs_BLOCK_INVALID byte = 0xff
 )
 
-func (g *Gouchstore) gotoEof() error {
-	var err error
-	g.pos, err = g.file.Seek(0, os.SEEK_END)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (g *Gouchstore) seekPreviousBlockFrom(pos int64) (int64, byte, error) {
 	pos -= 1 // need to move back at least one byte
 	pos -= pos % gs_BLOCK_SIZE
 	for ; pos >= 0; pos -= gs_BLOCK_SIZE {
 		var err error
 		buf := make([]byte, 1)
-		n, err := g.file.ReadAt(buf, pos)
+		n, err := g.ops.ReadAt(g.file, buf, pos)
 		if n != 1 || err != nil {
 			return -1, gs_BLOCK_INVALID, err
 		}
@@ -55,7 +42,10 @@ func (g *Gouchstore) seekPreviousBlockFrom(pos int64) (int64, byte, error) {
 func (g *Gouchstore) seekLastHeaderBlock() (int64, error) {
 	var blockType byte
 	var err error
-	g.gotoEof()
+	g.pos, err = g.ops.GotoEOF(g.file)
+	if err != nil {
+		return -1, err
+	}
 	pos := g.pos
 	for pos, blockType, err = g.seekPreviousBlockFrom(pos); blockType != gs_BLOCK_HEADER; pos, blockType, err = g.seekPreviousBlockFrom(pos) {
 		if err != nil {
@@ -84,7 +74,7 @@ func (g *Gouchstore) readAt(buf []byte, pos int64) (int64, error) {
 		if bytesToReadThisPass > numBytesToRead {
 			bytesToReadThisPass = numBytesToRead
 		}
-		n, err := g.file.ReadAt(buf[bytesReadSoFar:bytesReadSoFar+bytesToReadThisPass], readOffset)
+		n, err := g.ops.ReadAt(g.file, buf[bytesReadSoFar:bytesReadSoFar+bytesToReadThisPass], readOffset)
 		if err != nil {
 			return -1, err
 		}
@@ -119,7 +109,7 @@ func (g *Gouchstore) writeAt(buf []byte, pos int64, header bool) (int64, error) 
 		}
 
 		if writePos%gs_BLOCK_SIZE == 0 {
-			written, err = g.file.WriteAt([]byte{blockPrefix}, writePos)
+			written, err = g.ops.WriteAt(g.file, []byte{blockPrefix}, writePos)
 			if err != nil {
 				return int64(written), err
 			}
@@ -127,7 +117,7 @@ func (g *Gouchstore) writeAt(buf []byte, pos int64, header bool) (int64, error) 
 			continue
 		}
 
-		written, err = g.file.WriteAt(buf[bufPos:bufPos+blockRemain], writePos)
+		written, err = g.ops.WriteAt(g.file, buf[bufPos:bufPos+blockRemain], writePos)
 		if err != nil {
 			return int64(written), err
 		}

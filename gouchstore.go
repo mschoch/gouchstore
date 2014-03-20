@@ -95,6 +95,7 @@ type Gouchstore struct {
 	file   *os.File
 	pos    int64
 	header *header
+	ops    GouchOps
 }
 
 const (
@@ -106,6 +107,10 @@ const (
 //
 // All Gouchstore files successfully opened should be closed with the Close() method.
 func Open(filename string, options int) (*Gouchstore, error) {
+	return OpenEx(filename, options, NewBaseGouchOps())
+}
+
+func OpenEx(filename string, options int, ops GouchOps) (*Gouchstore, error) {
 	// sanity check options
 	if options&OPEN_CREATE != 0 && options&OPEN_RDONLY != 0 {
 		return nil, gs_ERROR_INVALID_ARGUMENTS
@@ -122,14 +127,17 @@ func Open(filename string, options int) (*Gouchstore, error) {
 		openFlags |= os.O_CREATE
 	}
 
-	file, err := os.OpenFile(filename, openFlags, 0666)
+	rv := Gouchstore{
+		ops: ops,
+	}
+
+	file, err := rv.ops.OpenFile(filename, openFlags, 0666)
 	if err != nil {
 		return nil, err
 	}
-	rv := Gouchstore{
-		file: file,
-	}
-	err = rv.gotoEof()
+	rv.file = file
+
+	rv.pos, err = rv.ops.GotoEOF(rv.file)
 	if err != nil {
 		return nil, err
 	}
@@ -509,7 +517,7 @@ func (g *Gouchstore) Commit() error {
 	dummyHeader := make([]byte, int(gs_HEADER_BASE_SIZE+seqRootSize+idRootSize+localRootSize))
 	g.writeChunk(dummyHeader, true)
 
-	err := g.file.Sync()
+	err := g.ops.Sync(g.file)
 	if err != nil {
 		return err
 	}
@@ -522,7 +530,7 @@ func (g *Gouchstore) Commit() error {
 		return err
 	}
 
-	err = g.file.Sync()
+	err = g.ops.Sync(g.file)
 	return err
 }
 
@@ -666,7 +674,7 @@ func (g *Gouchstore) WalkLocalDocsTree(startId, endId string, wtcb WalkTreeCallb
 
 // Close will close the underlying file handle and release any resources associated with the Gouchstore object.
 func (g *Gouchstore) Close() error {
-	return g.file.Close()
+	return g.ops.Close(g.file)
 }
 
 const (
