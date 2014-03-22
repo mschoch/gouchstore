@@ -80,6 +80,7 @@ func (g *Gouchstore) writeChunk(buf []byte, header bool) (int64, int64, error) {
 	if header {
 		if pos%gs_BLOCK_SIZE != 0 {
 			pos += (gs_BLOCK_SIZE - (pos % gs_BLOCK_SIZE))
+			g.pos += (gs_BLOCK_SIZE - (pos % gs_BLOCK_SIZE))
 		}
 	}
 
