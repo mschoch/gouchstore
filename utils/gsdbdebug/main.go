@@ -32,15 +32,22 @@ func main() {
 		fmt.Println("Must specify path to a gouchstore compatible file")
 		return
 	}
-	if flag.NArg() < 2 {
-		fmt.Println("Must specify an offset address in the file to examine")
-	}
 	db, err := gouchstore.Open(flag.Args()[0], gouchstore.OPEN_RDONLY)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer db.Close()
+
+	if flag.NArg() < 2 {
+		dbInfo, err := db.DatabaseInfo()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("Last valid header found at: %#x\n", dbInfo.HeaderPosition)
+		return
+	}
 
 	offsetAddress, err := strconv.ParseInt(flag.Arg(1), 0, 64)
 	if err != nil {
