@@ -150,16 +150,22 @@ func (g *Gouchstore) readHeaderAt(pos int64) (*header, error) {
 }
 
 func (g *Gouchstore) findLastHeader() error {
-	headerPos, err := g.seekLastHeaderBlock()
-	if err != nil {
-		return err
+	pos := g.pos
+	var h *header
+	var err error = fmt.Errorf("start")
+	var headerPos int64
+	for h == nil && err != nil {
+		headerPos, err = g.seekLastHeaderBlockFrom(pos)
+		if err != nil {
+			return err
+		}
+		h, err = g.readHeaderAt(headerPos)
+		if err != nil {
+			pos = headerPos - 1
+		}
 	}
-	header, err := g.readHeaderAt(headerPos)
-	if err != nil {
-		return err
-	}
-	header.position = uint64(headerPos)
-	g.header = header
+	h.position = uint64(headerPos)
+	g.header = h
 	return nil
 }
 

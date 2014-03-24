@@ -39,14 +39,9 @@ func (g *Gouchstore) seekPreviousBlockFrom(pos int64) (int64, byte, error) {
 	return -1, gs_BLOCK_INVALID, nil
 }
 
-func (g *Gouchstore) seekLastHeaderBlock() (int64, error) {
+func (g *Gouchstore) seekLastHeaderBlockFrom(pos int64) (int64, error) {
 	var blockType byte
 	var err error
-	g.pos, err = g.ops.GotoEOF(g.file)
-	if err != nil {
-		return -1, err
-	}
-	pos := g.pos
 	for pos, blockType, err = g.seekPreviousBlockFrom(pos); blockType != gs_BLOCK_HEADER; pos, blockType, err = g.seekPreviousBlockFrom(pos) {
 		if err != nil {
 			return -1, err
