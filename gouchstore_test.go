@@ -1352,3 +1352,81 @@ func BenchmarkAddDocument(b *testing.B) {
 		}
 	}
 }
+
+// test case for https://github.com/mschoch/gouchstore/commit/ff2246744f7054048285811bd5bf9264eb6a32a5
+func TestAddAfterCommit(t *testing.T) {
+	defer os.Remove("test.couch")
+	db, err := Open("test.couch", OPEN_CREATE)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	docs := make(map[string]*Document)
+	deletedDocs := make(map[string]bool)
+	docsBySeq := make(map[uint64]*Document)
+	deletedDocsBySeq := make(map[uint64]bool)
+
+	// create 500 docs
+	for i := 0; i < 500; i++ {
+		id := "doc-" + strconv.Itoa(i)
+		doc := &Document{
+			ID:   id,
+			Body: []byte(`{"abc":123}`),
+		}
+		docInfo := &DocumentInfo{
+			ID:          id,
+			Rev:         1,
+			ContentMeta: gs_DOC_IS_COMPRESSED,
+		}
+		err := db.SaveDocument(doc, docInfo)
+		if err != nil {
+			t.Fatalf("error saving %d: %v", i, err)
+		}
+		docs[doc.ID] = doc
+		docsBySeq[docInfo.Seq] = doc
+	}
+
+	// then commit
+	err = db.Commit()
+	if err != nil {
+		t.Fatalf("error committing end: %v", err)
+	}
+
+	// then create another 500 docs
+	for i := 500; i < 1000; i++ {
+		id := "doc-" + strconv.Itoa(i)
+		doc := &Document{
+			ID:   id,
+			Body: []byte(`{"abc":123}`),
+		}
+		docInfo := &DocumentInfo{
+			ID:          id,
+			Rev:         1,
+			ContentMeta: gs_DOC_IS_COMPRESSED,
+		}
+		err := db.SaveDocument(doc, docInfo)
+		if err != nil {
+			t.Fatalf("error saving %d: %v", i, err)
+		}
+		// we don't expect to find these, because we won't commit
+		// docs[doc.ID] = doc
+		// docsBySeq[docInfo.Seq] = doc
+	}
+
+	// now close the file (without commiting those last 5000)
+	err = db.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// now reopen it and check
+	db, err = Open("test.couch", OPEN_CREATE)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// check the tree?
+	sanityCheckIdTree(t, db, docs, deletedDocs)
+	sanityCheckSeqTree(t, db, docsBySeq, deletedDocsBySeq)
+}
