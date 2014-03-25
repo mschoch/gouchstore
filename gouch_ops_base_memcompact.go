@@ -9,17 +9,14 @@
 
 package gouchstore
 
-type DocumentWalkFun func(db *Gouchstore, di *DocumentInfo, doc *Document) error
+type MemCompactGouchOps struct {
+	*BaseGouchOps
+}
 
-// Walk the DB from a specific location including the complete docs.
-func (db *Gouchstore) WalkDocs(startkey, endkey string, callback DocumentWalkFun) error {
+func NewMemCompactGouchOps() *MemCompactGouchOps {
+	return &MemCompactGouchOps{}
+}
 
-	return db.AllDocuments(startkey, endkey, func(fdb *Gouchstore, di *DocumentInfo, context interface{}) error {
-		doc, err := fdb.DocumentByDocumentInfo(di)
-		if err != nil {
-			return err
-		}
-		return callback(fdb, di, doc)
-	}, nil)
-
+func (g *MemCompactGouchOps) CompactionTreeWriter(keyCompare btreeKeyComparator, reduce, rereduce reduceFunc, reduceContext interface{}) (TreeWriter, error) {
+	return NewInMemoryTreeWriter(gouchstoreIdComparator, byIdReduce, byIdReReduce, nil)
 }

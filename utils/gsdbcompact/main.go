@@ -16,6 +16,8 @@ import (
 	"github.com/mschoch/gouchstore"
 )
 
+var memCompact = flag.Bool("memCompact", false, "perform compaction in memory")
+
 func main() {
 
 	flag.Parse()
@@ -27,7 +29,14 @@ func main() {
 		fmt.Println("Must specify path to the new compacted gouchstore file")
 		return
 	}
-	db, err := gouchstore.Open(flag.Args()[0], gouchstore.OPEN_RDONLY)
+
+	var ops gouchstore.GouchOps
+	if *memCompact {
+		ops = gouchstore.NewMemCompactGouchOps()
+	} else {
+		ops = gouchstore.NewBaseGouchOps()
+	}
+	db, err := gouchstore.OpenEx(flag.Args()[0], gouchstore.OPEN_RDONLY, ops)
 	if err != nil {
 		fmt.Println(err)
 		return
