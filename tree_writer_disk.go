@@ -18,7 +18,7 @@ import (
 )
 
 // FIXME this isn't really MB right? its a count of items, not their size
-const ID_SORT_CHUNK_SIZE = (100 * 1024 * 1024) // 100MB. Make tuneable?
+const ID_SORT_CHUNK_SIZE = (10 * 1024 * 1024) // 10MB. Make tuneable?
 
 type OnDiskTreeWriter struct {
 	keyCompare       btreeKeyComparator
