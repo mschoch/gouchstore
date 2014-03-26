@@ -22,5 +22,7 @@ type GouchOps interface {
 	GotoEOF(f *os.File) (ret int64, err error)
 	Sync(f *os.File) error
 	CompactionTreeWriter(keyCompare btreeKeyComparator, reduce, rereduce reduceFunc, reduceContext interface{}) (TreeWriter, error)
+	SnappyEncode(dst, src []byte) ([]byte, error)
+	SnappyDecode(dst, src []byte) ([]byte, error)
 	Close(f *os.File) error
 }

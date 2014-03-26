@@ -11,6 +11,8 @@ package gouchstore
 
 import (
 	"os"
+
+	"code.google.com/p/snappy-go/snappy"
 )
 
 type BaseGouchOps struct{}
@@ -41,6 +43,14 @@ func (g *BaseGouchOps) Sync(f *os.File) error {
 
 func (g *BaseGouchOps) CompactionTreeWriter(keyCompare btreeKeyComparator, reduce, rereduce reduceFunc, reduceContext interface{}) (TreeWriter, error) {
 	return NewOnDiskTreeWriter("", keyCompare, reduce, rereduce, reduceContext)
+}
+
+func (g *BaseGouchOps) SnappyEncode(dst, src []byte) ([]byte, error) {
+	return snappy.Encode(dst, src)
+}
+
+func (g *BaseGouchOps) SnappyDecode(dst, src []byte) ([]byte, error) {
+	return snappy.Decode(dst, src)
 }
 
 func (g *BaseGouchOps) Close(f *os.File) error {

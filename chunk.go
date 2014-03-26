@@ -11,8 +11,6 @@ package gouchstore
 
 import (
 	"hash/crc32"
-
-	"code.google.com/p/snappy-go/snappy"
 )
 
 const gs_CHUNK_LENGTH_SIZE int64 = 4
@@ -63,7 +61,7 @@ func (g *Gouchstore) readCompressedDataChunkAt(pos int64) ([]byte, error) {
 		return nil, err
 	}
 
-	decompressedChunk, err := snappy.Decode(nil, chunk)
+	decompressedChunk, err := g.ops.SnappyDecode(nil, chunk)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +121,7 @@ func (g *Gouchstore) writeChunk(buf []byte, header bool) (int64, int64, error) {
 }
 
 func (g *Gouchstore) writeCompressedChunk(buf []byte) (int64, int64, error) {
-	compressed, err := snappy.Encode(nil, buf)
+	compressed, err := g.ops.SnappyEncode(nil, buf)
 	if err != nil {
 		return -1, -1, err
 	}
