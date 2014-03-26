@@ -14,7 +14,7 @@ import (
 	"fmt"
 )
 
-const gs_DISK_VERSION = 10
+const gs_DISK_VERSION = 11
 const gs_ROOT_BASE_SIZE = 12
 const gs_HEADER_BASE_SIZE int64 = 25
 
