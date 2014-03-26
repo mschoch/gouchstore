@@ -576,6 +576,7 @@ func assertDocsExistWithContent(t *testing.T, db *Gouchstore, docs []*Document, 
 		dbdi, err := db.DocumentInfoById(di.ID)
 		if err != nil {
 			t.Error(err)
+			return
 		}
 		if dbdi.Rev != di.Rev {
 			t.Errorf("expected database doc info rev %d to match doc info rev %d", dbdi.Rev, di.Rev)
@@ -586,6 +587,7 @@ func assertDocsExistWithContent(t *testing.T, db *Gouchstore, docs []*Document, 
 		dbd, err := db.DocumentByDocumentInfo(dbdi)
 		if err != nil {
 			t.Errorf("expected to find document body just added, got: %v", err)
+			return
 		}
 
 		if !reflect.DeepEqual(d, dbd) {
@@ -1517,4 +1519,51 @@ func TestSkipPastBadHeader(t *testing.T) {
 	// check the tree?
 	sanityCheckIdTree(t, db, docs, deletedDocs)
 	sanityCheckSeqTree(t, db, docsBySeq, deletedDocsBySeq)
+}
+
+func TestAddEmptyArrayOfDocuments(t *testing.T) {
+	defer os.Remove("test.couch")
+	db, err := Open("test.couch", OPEN_CREATE)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	doc := &Document{
+		ID:   "newdoc",
+		Body: []byte(`{"abc":123}`),
+	}
+	docInfo := &DocumentInfo{
+		ID:          "newdoc",
+		Rev:         7,
+		ContentMeta: gs_DOC_IS_COMPRESSED,
+	}
+
+	err = db.SaveDocument(doc, docInfo)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if db.header.updateSeq != 1 {
+		t.Errorf("expected update seq to be 1, got %d", db.header.updateSeq)
+	}
+
+	if db.header.byIdRoot == nil {
+		t.Errorf("expected by id root to no longer be nil")
+	}
+	if db.header.bySeqRoot == nil {
+		t.Errorf("expected by seq root to no longer be nil")
+	}
+
+	// check document exists
+	assertDocsExistWithContent(t, db, []*Document{doc}, []*DocumentInfo{docInfo})
+
+	err = db.SaveDocuments([]*Document{}, []*DocumentInfo{})
+	if err != nil {
+		t.Error(err)
+	}
+
+	// check document still exists
+	assertDocsExistWithContent(t, db, []*Document{doc}, []*DocumentInfo{docInfo})
+
 }

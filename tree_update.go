@@ -243,7 +243,7 @@ func (g *Gouchstore) updateIndexes(seqs, seqvals, ids, idvals [][]byte) error {
 }
 
 func (g *Gouchstore) modifyBtree(req *modifyRequest, np *nodePointer) (*nodePointer, error) {
-	var retPtr *nodePointer
+	var retPtr *nodePointer = np
 	var err error
 	rootResult := makeModifyResult(req)
 	rootResult.nodeType = gs_KP_NODE
