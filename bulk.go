@@ -9,7 +9,9 @@
 
 package gouchstore
 
-import "errors"
+import (
+	"errors"
+)
 
 // Interface for writing bulk data into couchstore.
 // Migrated to facilitate Seriesly, re-evaluate overall API
@@ -71,9 +73,11 @@ func (db *Gouchstore) commitBulk(batch []instr) error {
 		docInfos[i] = batch[i].di
 	}
 
-	err := db.SaveDocuments(docs, docInfos)
-	if err != nil {
-		return err
+	if len(docs) > 0 {
+		err := db.SaveDocuments(docs, docInfos)
+		if err != nil {
+			return err
+		}
 	}
 
 	return db.Commit()
@@ -94,6 +98,7 @@ func (db *Gouchstore) Bulk() BulkWriter {
 		ever := true
 		batch := make([]instr, 0, 100)
 		for ever {
+
 			select {
 			case <-rv.quit:
 				ever = false
