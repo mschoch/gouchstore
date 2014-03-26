@@ -192,6 +192,9 @@ func (g *Gouchstore) DocumentInfosByIds(identifiers []string) ([]*DocumentInfo, 
 	}
 
 	resultList := make([]*DocumentInfo, 0)
+	if g.header.byIdRoot == nil {
+		return resultList, nil
+	}
 
 	lc := lookupContext{
 		gouchstore:           g,
@@ -290,6 +293,9 @@ func (g *Gouchstore) DocumentInfosBySeqs(sequences []uint64) ([]*DocumentInfo, e
 	}
 
 	resultList := make([]*DocumentInfo, 0)
+	if g.header.bySeqRoot == nil {
+		return resultList, nil
+	}
 
 	lc := lookupContext{
 		gouchstore:           g,
