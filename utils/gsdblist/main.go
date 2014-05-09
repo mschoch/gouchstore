@@ -22,7 +22,7 @@ var endId = flag.String("endId", "", "the document ID to scan to")
 var startSeq = flag.Int("startSeq", -1, "the sequence number to scan from")
 var endSeq = flag.Int("endSeq", -1, "the sequence number to scan to")
 
-func allDocumentsCallback(g *gouchstore.Gouchstore, docInfo *gouchstore.DocumentInfo, userContext interface{}) {
+func allDocumentsCallback(g *gouchstore.Gouchstore, docInfo *gouchstore.DocumentInfo, userContext interface{}) error {
 	bytes, err := json.MarshalIndent(docInfo, "", "  ")
 	if err != nil {
 		fmt.Println(err)
@@ -30,6 +30,7 @@ func allDocumentsCallback(g *gouchstore.Gouchstore, docInfo *gouchstore.Document
 		userContext.(map[string]int)["count"]++
 		fmt.Println(string(bytes))
 	}
+	return nil
 }
 
 func main() {
