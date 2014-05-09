@@ -31,8 +31,8 @@ func (g *Gouchstore) readChunkAt(pos int64, header bool) ([]byte, error) {
 	size := decode_raw31(chunkPrefix[0:gs_CHUNK_LENGTH_SIZE])
 	crc := decode_raw32(chunkPrefix[gs_CHUNK_LENGTH_SIZE : gs_CHUNK_LENGTH_SIZE+gs_CHUNK_CRC_SIZE])
 
-	// size should at least be the size of the length field + 1
-	if size < uint32(gs_CHUNK_LENGTH_SIZE+1) {
+	// size should at least be the size of the length field + 1 (for headers)
+	if header && size < uint32(gs_CHUNK_LENGTH_SIZE+1) {
 		return nil, gs_ERROR_INVALID_CHUNK_SIZE_TOO_SMALL
 	}
 	if header {
