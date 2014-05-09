@@ -283,16 +283,17 @@ func compareTwoDbFiles(t *testing.T, path1, path2 string) {
 		t.Fatal(err)
 	}
 
+	offset := 0
 	for err != io.EOF {
 
 		var numRead1, numRead2 int
-		buf1 := make([]byte, 1024)
+		buf1 := make([]byte, 16)
 		numRead1, err = f1.Read(buf1)
 		if err != nil && err != io.EOF {
 			t.Fatal(err)
 		}
 
-		buf2 := make([]byte, 1024)
+		buf2 := make([]byte, 16)
 		numRead2, err = f2.Read(buf2)
 		if err != nil && err != io.EOF {
 			t.Fatal(err)
@@ -303,8 +304,9 @@ func compareTwoDbFiles(t *testing.T, path1, path2 string) {
 		}
 
 		if bytes.Compare(buf1, buf2) != 0 {
-			t.Fatalf("file bytes differ")
+			t.Fatalf("file bytes differ at offset %# x [%# x] [%# x]", offset, buf1, buf2)
 		}
+		offset += 16
 	}
 
 }
