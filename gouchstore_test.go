@@ -354,7 +354,7 @@ func TestAddDocumentToEmpty(t *testing.T) {
 	docInfo := &DocumentInfo{
 		ID:          "newdoc",
 		Rev:         7,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 
 	err = db.SaveDocument(doc, docInfo)
@@ -404,7 +404,7 @@ func TestAddMultipleDocumentsToEmpty(t *testing.T) {
 	docInfo := &DocumentInfo{
 		ID:          "newdoc",
 		Rev:         7,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 
 	err = db.SaveDocument(doc, docInfo)
@@ -434,7 +434,7 @@ func TestAddMultipleDocumentsToEmpty(t *testing.T) {
 	docInfo = &DocumentInfo{
 		ID:          "newdoc2",
 		Rev:         9,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 
 	err = db.SaveDocument(doc, docInfo)
@@ -465,7 +465,7 @@ func TestUpdateDocument(t *testing.T) {
 	docInfo := &DocumentInfo{
 		ID:          "newdoc",
 		Rev:         7,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 
 	err = db.SaveDocument(doc, docInfo)
@@ -495,7 +495,7 @@ func TestUpdateDocument(t *testing.T) {
 	docInfo = &DocumentInfo{
 		ID:          "newdoc",
 		Rev:         9,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 
 	err = db.SaveDocument(doc, docInfo)
@@ -526,7 +526,7 @@ func TestDeleteDocument(t *testing.T) {
 	docInfo := &DocumentInfo{
 		ID:          "newdoc",
 		Rev:         7,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 
 	// add a document
@@ -540,7 +540,7 @@ func TestDeleteDocument(t *testing.T) {
 	docInfo = &DocumentInfo{
 		ID:          "newdoc",
 		Rev:         9,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 
 	err = db.SaveDocument(doc, docInfo)
@@ -608,27 +608,27 @@ func TestComittedChangesPersist(t *testing.T) {
 		&DocumentInfo{
 			ID:          "a",
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		},
 		&DocumentInfo{
 			ID:          "b",
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		},
 		&DocumentInfo{
 			ID:          "e",
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		},
 		&DocumentInfo{
 			ID:          "c",
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		},
 		&DocumentInfo{
 			ID:          "d",
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		},
 	}
 	docs := []*Document{
@@ -700,7 +700,7 @@ func TestCreateLargerFile(t *testing.T) {
 		docInfo := &DocumentInfo{
 			ID:          id,
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		}
 		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
@@ -750,7 +750,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 		docInfo := &DocumentInfo{
 			ID:          id,
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		}
 		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
@@ -796,7 +796,7 @@ func TestCreateLargerFileAndUpdateThemAll(t *testing.T) {
 		docInfo := &DocumentInfo{
 			ID:          id,
 			Rev:         2,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		}
 		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
@@ -1043,7 +1043,7 @@ func TestRealWorld(t *testing.T) {
 			docInfo := &DocumentInfo{
 				ID:          docId,
 				Rev:         1,
-				ContentMeta: gs_DOC_IS_COMPRESSED,
+				ContentMeta: DOC_IS_COMPRESSED,
 			}
 			err = db.SaveDocument(doc, docInfo)
 			if err != nil {
@@ -1346,7 +1346,7 @@ func BenchmarkAddDocument(b *testing.B) {
 		docInfo := &DocumentInfo{
 			ID:          docId,
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		}
 		err = db.SaveDocument(doc, docInfo)
 		if err != nil {
@@ -1379,7 +1379,7 @@ func TestAddAfterCommit(t *testing.T) {
 		docInfo := &DocumentInfo{
 			ID:          id,
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		}
 		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
@@ -1405,7 +1405,7 @@ func TestAddAfterCommit(t *testing.T) {
 		docInfo := &DocumentInfo{
 			ID:          id,
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		}
 		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
@@ -1456,7 +1456,7 @@ func TestSkipPastBadHeader(t *testing.T) {
 		docInfo := &DocumentInfo{
 			ID:          id,
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		}
 		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
@@ -1482,7 +1482,7 @@ func TestSkipPastBadHeader(t *testing.T) {
 		docInfo := &DocumentInfo{
 			ID:          id,
 			Rev:         1,
-			ContentMeta: gs_DOC_IS_COMPRESSED,
+			ContentMeta: DOC_IS_COMPRESSED,
 		}
 		err := db.SaveDocument(doc, docInfo)
 		if err != nil {
@@ -1536,7 +1536,7 @@ func TestAddEmptyArrayOfDocuments(t *testing.T) {
 	docInfo := &DocumentInfo{
 		ID:          "newdoc",
 		Rev:         7,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 
 	err = db.SaveDocument(doc, docInfo)

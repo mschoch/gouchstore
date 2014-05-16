@@ -37,7 +37,7 @@ func TestCompactSmall(t *testing.T) {
 	docInfo := &DocumentInfo{
 		ID:          "newdoc",
 		Rev:         7,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 
 	err = db.SaveDocument(doc, docInfo)
@@ -111,7 +111,7 @@ func TestCompactionLarger(t *testing.T) {
 			docInfo := &DocumentInfo{
 				ID:          id,
 				Rev:         uint64(j + 1),
-				ContentMeta: gs_DOC_IS_COMPRESSED,
+				ContentMeta: DOC_IS_COMPRESSED,
 			}
 			err := db.SaveDocument(doc, docInfo)
 			if err != nil {
@@ -202,7 +202,7 @@ func TestDiskCompactionMatchesMemory(t *testing.T) {
 			docInfo := &DocumentInfo{
 				ID:          id,
 				Rev:         uint64(j + 1),
-				ContentMeta: gs_DOC_IS_COMPRESSED,
+				ContentMeta: DOC_IS_COMPRESSED,
 			}
 			err := db.SaveDocument(doc, docInfo)
 			if err != nil {

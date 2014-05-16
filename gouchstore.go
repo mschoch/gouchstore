@@ -55,13 +55,13 @@ func (di *DocumentInfo) WriteIDTo(w io.Writer) (int, error) {
 func NewDocumentInfo(id string) *DocumentInfo {
 	return &DocumentInfo{
 		ID:          id,
-		ContentMeta: gs_DOC_IS_COMPRESSED,
+		ContentMeta: DOC_IS_COMPRESSED,
 	}
 }
 
 // Compressed returns whether or not this document has been compressed for storage.
 func (di *DocumentInfo) compressed() bool {
-	if di.ContentMeta&gs_DOC_IS_COMPRESSED != 0 {
+	if di.ContentMeta&DOC_IS_COMPRESSED != 0 {
 		return true
 	}
 	return false
@@ -157,22 +157,69 @@ func OpenEx(filename string, options int, ops GouchOps) (*Gouchstore, error) {
 	return &rv, nil
 }
 
+func gouchstoreFetchSingleCallback(g *Gouchstore, docInfo *DocumentInfo, userContext interface{}) error {
+	resultList := userContext.(*([]*DocumentInfo))
+	(*resultList)[0].ID = docInfo.ID
+	(*resultList)[0].Seq = docInfo.Seq
+	(*resultList)[0].Rev = docInfo.Rev
+	(*resultList)[0].RevMeta = docInfo.RevMeta
+	(*resultList)[0].ContentMeta = docInfo.ContentMeta
+	(*resultList)[0].Size = docInfo.Size
+	(*resultList)[0].Deleted = docInfo.Deleted
+	(*resultList)[0].bodyPosition = docInfo.bodyPosition
+	return nil
+}
+
 func gouchstoreFetchCallback(g *Gouchstore, docInfo *DocumentInfo, userContext interface{}) error {
 	resultList := userContext.(*([]*DocumentInfo))
 	*resultList = append(*resultList, docInfo)
 	return nil
 }
 
+func (g *Gouchstore) DocumentInfoByIdNoAlloc(id string, docInfo *DocumentInfo) error {
+	if g.header.byIdRoot == nil {
+		return gs_ERROR_DOCUMENT_NOT_FOUND
+	}
+
+	// convert it to a slice of byte slices
+	idsBytes := [][]byte{[]byte(id)}
+
+	resultList := []*DocumentInfo{docInfo}
+
+	lc := lookupContext{
+		gouchstore:           g,
+		documentInfoCallback: gouchstoreFetchSingleCallback,
+		callbackContext:      &resultList,
+		indexType:            gs_INDEX_TYPE_BY_ID,
+	}
+
+	lr := lookupRequest{
+		compare:         gouchstoreIdComparator,
+		keys:            idsBytes,
+		fetchCallback:   lookupCallback,
+		fold:            false,
+		callbackContext: &lc,
+	}
+
+	err := g.btreeLookup(&lr, g.header.byIdRoot.pointer)
+	if err != nil {
+		return err
+	}
+
+	if resultList[0].ID != "" {
+		return nil
+	}
+	return gs_ERROR_DOCUMENT_NOT_FOUND
+}
+
 // DocumentInfoById returns DocumentInfo for a single document with the specified ID.
 func (g *Gouchstore) DocumentInfoById(id string) (*DocumentInfo, error) {
-	docInfos, err := g.DocumentInfosByIds([]string{id})
+	docInfo := DocumentInfo{}
+	err := g.DocumentInfoByIdNoAlloc(id, &docInfo)
 	if err != nil {
 		return nil, err
 	}
-	if len(docInfos) == 1 {
-		return docInfos[0], nil
-	}
-	return nil, gs_ERROR_DOCUMENT_NOT_FOUND
+	return &docInfo, nil
 }
 
 // DocumentInfosByIds returns DocumentInfo objects for the specified document IDs.
@@ -430,6 +477,28 @@ func (g *Gouchstore) WalkSeqTree(since uint64, till uint64, wtcb WalkTreeCallbac
 	return nil
 }
 
+func (g *Gouchstore) DocumentBodyById(id string) ([]byte, error) {
+	var doc Document
+	err := g.DocumentByIdNoAlloc(id, &doc)
+	if err != nil {
+		return nil, err
+	}
+	return doc.Body, nil
+}
+
+func (g *Gouchstore) DocumentByIdNoAlloc(id string, doc *Document) error {
+	var docInfo DocumentInfo
+	err := g.DocumentInfoByIdNoAlloc(id, &docInfo)
+	if err != nil {
+		return err
+	}
+	err = g.DocumentByDocumentInfoNoAlloc(&docInfo, doc)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // DocumentById returns the Document with the specified identifier.
 func (g *Gouchstore) DocumentById(id string) (*Document, error) {
 	docInfo, err := g.DocumentInfoById(id)
@@ -439,24 +508,32 @@ func (g *Gouchstore) DocumentById(id string) (*Document, error) {
 	return g.DocumentByDocumentInfo(docInfo)
 }
 
+func (g *Gouchstore) DocumentByDocumentInfoNoAlloc(docInfo *DocumentInfo, doc *Document) error {
+	var err error
+	if docInfo.compressed() {
+		doc.Body, err = g.readCompressedDataChunkAt(int64(docInfo.bodyPosition))
+		if err != nil {
+			return err
+		}
+	} else {
+		doc.Body, err = g.readChunkAt(int64(docInfo.bodyPosition), false)
+		if err != nil {
+			return err
+		}
+	}
+	doc.ID = docInfo.ID
+	return nil
+}
+
 // DocumentByDocumentInfo returns the Document using the provided DocumentInfo.
 // The provided DocumentInfo should be valid, such as one received by one of the
 // DocumentInfo*() methods, on the current couchstore file.
 func (g *Gouchstore) DocumentByDocumentInfo(docInfo *DocumentInfo) (*Document, error) {
 	var rv Document
-	var err error
-	if docInfo.compressed() {
-		rv.Body, err = g.readCompressedDataChunkAt(int64(docInfo.bodyPosition))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		rv.Body, err = g.readChunkAt(int64(docInfo.bodyPosition), false)
-		if err != nil {
-			return nil, err
-		}
+	err := g.DocumentByDocumentInfoNoAlloc(docInfo, &rv)
+	if err != nil {
+		return nil, err
 	}
-	rv.ID = docInfo.ID
 	return &rv, nil
 }
 
@@ -688,5 +765,5 @@ const (
 	gs_DOC_INVALID_JSON          = 1
 	gs_DOC_INVALID_JSON_KEY      = 2
 	gs_DOC_NON_JSON_MODE         = 3
-	gs_DOC_IS_COMPRESSED    byte = 128
+	DOC_IS_COMPRESSED       byte = 128
 )
