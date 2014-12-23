@@ -49,7 +49,9 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		fmt.Println("Document Info:")
+		if *printBody {
+			fmt.Println("Document Info:")
+		}
 		fmt.Println(string(bytes))
 	}
 
@@ -59,7 +61,9 @@ func main() {
 		return
 	}
 	if *printBody {
-		fmt.Println("Document Body:")
+		if *printInfo {
+			fmt.Println("Document Body:")
+		}
 		fmt.Println(string(doc.Body))
 	}
 }
