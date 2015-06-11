@@ -38,14 +38,14 @@ type LocalDocument struct {
 
 // DocumentInfo is document meta-data.
 type DocumentInfo struct {
-	ID           string `json:"id"`           // document identifier
-	Seq          uint64 `json:"seq"`          // sequence number in database
-	Rev          uint64 `json:"rev"`          // revision number of document
-	RevMeta      []byte `json:"revMeta"`      // additional revision meta-data (uninterpreted by Gouchstore)
-	ContentMeta  uint8  `json:"contentMeta"`  // content meta-data flags
-	Deleted      bool   `json:"deleted"`      // is the revision deleted?
-	Size         uint64 `json:"size"`         // size of document data in bytes
-	bodyPosition uint64 `json:"bodyPosition"` // byte offset of document body in file
+	ID           string `json:"id"`          // document identifier
+	Seq          uint64 `json:"seq"`         // sequence number in database
+	Rev          uint64 `json:"rev"`         // revision number of document
+	RevMeta      []byte `json:"revMeta"`     // additional revision meta-data (uninterpreted by Gouchstore)
+	ContentMeta  uint8  `json:"contentMeta"` // content meta-data flags
+	Deleted      bool   `json:"deleted"`     // is the revision deleted?
+	Size         uint64 `json:"size"`        // size of document data in bytes
+	bodyPosition uint64 // byte offset of document body in file
 }
 
 func (di *DocumentInfo) WriteIDTo(w io.Writer) (int, error) {
