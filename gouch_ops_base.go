@@ -12,7 +12,7 @@ package gouchstore
 import (
 	"os"
 
-	"code.google.com/p/snappy-go/snappy"
+	"github.com/golang/snappy/snappy"
 )
 
 type BaseGouchOps struct{}
