@@ -12,7 +12,7 @@ package gouchstore
 import (
 	"os"
 
-	"github.com/golang/snappy/snappy"
+	"github.com/golang/snappy"
 )
 
 type BaseGouchOps struct{}
@@ -45,7 +45,7 @@ func (g *BaseGouchOps) CompactionTreeWriter(keyCompare btreeKeyComparator, reduc
 	return NewOnDiskTreeWriter("", keyCompare, reduce, rereduce, reduceContext)
 }
 
-func (g *BaseGouchOps) SnappyEncode(dst, src []byte) ([]byte, error) {
+func (g *BaseGouchOps) SnappyEncode(dst, src []byte) []byte {
 	return snappy.Encode(dst, src)
 }
 

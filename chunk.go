@@ -121,9 +121,6 @@ func (g *Gouchstore) writeChunk(buf []byte, header bool) (int64, int64, error) {
 }
 
 func (g *Gouchstore) writeCompressedChunk(buf []byte) (int64, int64, error) {
-	compressed, err := g.ops.SnappyEncode(nil, buf)
-	if err != nil {
-		return -1, -1, err
-	}
+	compressed := g.ops.SnappyEncode(nil, buf)
 	return g.writeChunk(compressed, false)
 }
